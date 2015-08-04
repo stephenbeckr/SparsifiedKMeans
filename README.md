@@ -12,7 +12,7 @@ Every time you start a new Matlab session, run `setup_kmeans` and it will correc
 
 
 # Example
-![Example on synthetic data](/stephenbeckr/SparsifiedKMeans/example.png?raw=true "Example on synthetic data")
+![Example on synthetic data](example.png?raw=true "Example on synthetic data")
 
 # Authors
 * [Stephen Becker](http://amath.colorado.edu/faculty/becker/), University of Colorado Boulder (Applied Mathematics)
