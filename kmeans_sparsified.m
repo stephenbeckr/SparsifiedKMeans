@@ -19,6 +19,8 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, bestDistancesTrue] 
 %   'Start'                 if 'sample', picks K random data points
 %                           if 'uniform', picks K points uniformly from
 %                               the space
+%                           if 'Arthur' or '++', uses Arthur/Vassilvitskii 2007
+%                               K-means++ algorithm to initialize
 %   'MaxIter'               How many iterations to run for each trial
 %                               (default: 100)
 %   'Display'               either 'off' (default),'iter' or 'final'
@@ -53,8 +55,8 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, bestDistancesTrue] 
 
 p = inputParser;
 addParameter(p,'Replicates',1);
-expectedStart = {'sample','uniform'};
-addParameter(p,'Start','sample',@(x) any(validatestring(x,expectedStart)));
+expectedStart = {'sample','uniform','Arthur','k-means++','++'};
+addParameter(p,'Start','Arthur',@(x) any(validatestring(x,expectedStart)));
 addParameter(p,'MaxIter',100);
 validDispActions={'off','iter','final'};
 addParameter(p,'Display',false,@(x) any(validatestring(x,validDispActions)));
@@ -187,6 +189,8 @@ for nTrials = 1:Replicates
             centers     = full(X(:,ind));
         case 'uniform'
             centers     = (mx-mn)*rand(p2,K) - mn;
+        case {'arthur','++','kmeans++','k-means++','k-means-++'}
+            centers     = full(Arthur_initialization(X,K));
         otherwise
             error('cannot handle other types of "Start" values');
     end

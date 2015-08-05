@@ -11,8 +11,8 @@ setup_kmeans
 %% Generate synthetic data
 rng(234);
 k       = 5;
-p       = 100; n = 2e3;
-% p       = 512; n = 5e3; % Used this to make the .png image
+% p       = 100; n = 2e3;
+p       = 512; n = 5e3; % Used this to make the .png image
 
 centersTrue = randn(p,k);
 X           = randn(p,n);
@@ -48,7 +48,7 @@ fprintf('stats toolbox version:\tobjective %.3e, time %.2e\n', obj_Matlab, time_
 warning('off','kmeans_sparsified:dropCluster');
 tic
 [indx,centers,sumd,dist_sketch, dist] = kmeans_sparsified( X, k,'ColumnSamples',true,...
-    'Display','off','Replicates',nReplicates,'Sparsify',false, 'start','sample');
+    'Display','off','Replicates',nReplicates,'Sparsify',false, 'start','++');
 time_faster     = toc;
 obj_faster      = norm(dist);
 centers_faster = centers;
@@ -62,7 +62,6 @@ tic
 [indx,centers,sumd,dist_sketch, dist] = kmeans_sparsified( X, k,'ColumnSamples',true,...
     'Display','off','Replicates',nReplicates,...
     'Sparsify',true,'SparsityLevel',SparsityLevel );
-toc
 time_fastest    = toc;
 obj_fastest     = norm(dist);
 centers_fastest = centers;
