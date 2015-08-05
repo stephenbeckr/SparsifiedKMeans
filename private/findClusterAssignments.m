@@ -23,6 +23,7 @@ function [assignments,distances] = findClusterAssignments( X, centers )
 
 [p,n]   = size(X);
 [pp,k]  = size(centers);
+% centers = full(centers); % allow it to be sparse
 if ~isequal(p,pp), error('Array of centers not of correct size'); end
 
 distances   = zeros( k, n );
@@ -30,16 +31,34 @@ distances   = zeros( k, n );
 if issparse(X)
     if 3==exist('SparseMatrixMinusCluster','file') 
         % use the fast mex code
-        for ki = 1:k
-            distances( ki, : ) =SparseMatrixMinusCluster(X, centers(:,ki) );
+        if issparse(centers)
+            for ki = 1:k
+                ind     = find( centers(:,ki) );
+                distances( ki, : ) =SparseMatrixMinusCluster(X(ind,:), full(centers(ind,ki)) );
+            end
+        else
+            for ki = 1:k
+                distances( ki, : ) =SparseMatrixMinusCluster(X, centers(:,ki) );
+            end
         end
     else
         warning('findClusterAssigments:noMex','cannot find mex file in your path, using slower code');
-        
-        for ki = 1:k
-            for j = 1:n
-                ind     = find( X(:,j) );
-                distances(ki,j) = norm( X(ind,j) - centers(ind,ki) );
+        if issparse(centers)
+            for ki = 1:k
+                for j = 1:n
+                    ind     = find( X(:,j) );
+                    ind     = intersect( ind, find(centers(:,ki) ) );
+                    if ~isempty(ind)
+                        distances(ki,j) = norm( X(ind,j) - centers(ind,ki) );
+                    end
+                end
+            end
+        else
+            for ki = 1:k
+                for j = 1:n
+                    ind     = find( X(:,j) );
+                    distances(ki,j) = norm( X(ind,j) - centers(ind,ki) );
+                end
             end
         end
     end
