@@ -51,4 +51,4 @@ else
     end
 end
 
-[distances,assignments] = min( distances );
+[distances,assignments] = min( distances, [], 1 );
