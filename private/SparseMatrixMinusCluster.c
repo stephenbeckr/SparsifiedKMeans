@@ -15,7 +15,7 @@
  * */
 
 
-#if defined(__GNUC__) && !(defined(__clang__)) 
+#if defined(__GNUC__) && !(defined(__clang__)) && defined(NEEDS_UCHAR)
 #include <uchar.h>
 #endif
 #include <math.h>
@@ -68,12 +68,9 @@ void mexFunction( int nlhs, mxArray *plhs[],
     /* Loop through columns of X */
     
     for ( i=0; i < n; i++ ) {
-        //mexPrintf("i = %2d, jc[i] is %2d\n", i, jc[i] );
         dist = 0.;
         for ( j=jc[i]; j<jc[i+1]; j++ ){
             dist += ( x[j] - center[ ir[j] ] )*( x[j] - center[ ir[j] ] );
-//             mexPrintf("%.3f\n", x[j] );
-//             mexPrintf("%ld\n", ir[j] ); % 0-based, so good.
         }
         distance[i] = sqrt(dist);
     }
