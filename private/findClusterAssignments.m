@@ -1,4 +1,5 @@
-function [assignments,distances] = findClusterAssignments( X, centers )
+
+function [assignments,distances,centers] = findClusterAssignments( X, centers )
 % assignments = findClusterAssignments( X, centers )
 %
 %   takes a data matrix X, which is p x n,
@@ -17,9 +18,13 @@ function [assignments,distances] = findClusterAssignments( X, centers )
 %
 % [assignments,distances] = ...
 %   also returns the distances to each cluster
+% [assignments,distances,newCenters] = ...
+%   also returns the new centers computed with these assignments
+%   (If a cluster has nothing assigned to it, we arbitarily
+%    give it a center-point of 0 )
 %
 % Stephen Becker, stephen.becker@colorado.edu
-% July 22, 2015
+% July 22, 2015 -- Aug 6 2015
 
 [p,n]   = size(X);
 [pp,k]  = size(centers);
@@ -71,3 +76,15 @@ else
 end
 
 [distances,assignments] = min( distances, [], 1 );
+
+if nargout >= 3
+    % user has requested new centers
+    for ki = 1:k
+        ind             = find( assignments == ki );
+        if isempty(ind)
+            centers(:,ki)   = 0;
+        else
+            centers(:,ki)   = mean( full(X(:, ind ) ), 2 );
+        end
+    end
+end

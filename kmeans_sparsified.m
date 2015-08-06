@@ -204,9 +204,6 @@ for nTrials = 1:Replicates
         centersOld  = centers;
         dropCenters = [];
         for ki = 1:K
-            % Note that we are not weighting this
-            % If we want to follow ML argument for sparse data,
-            % we need to a bit of weighting here
             ind             = find( assignments == ki );
             if isempty(ind)
                 warning('kmeans_sparsified:dropCluster','cluster has lost all its members');
