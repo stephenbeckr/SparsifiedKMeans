@@ -31,10 +31,18 @@ for k = 1:(K-1)
     %   based on dist^2
     % Since we only need one point, we can sample with or without
     %   replacement
-    i   = randsample( n, 1, true, dist.^2 );
+    if norm(dist)>0
+        i   = randsample( n, 1, true, dist.^2 );
+    else
+        i   = randsample( n, 1, true);
+    end
     counter     = 1;
     while ismember( i, chosenInd ) && counter < 20
-        i   = randsample( n, 1, true, dist.^2 );
+        if norm(dist)>0
+            i   = randsample( n, 1, true, dist.^2 );
+        else
+            i   = randsample( n, 1, true);
+        end
         counter     = counter + 1;
     end
     if counter==2
