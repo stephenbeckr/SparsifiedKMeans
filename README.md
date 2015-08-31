@@ -4,7 +4,7 @@ KMeans for big data using preconditioning and sparsification, Matlab implementat
 The code provides `kmeans_sparsified` which is used much like the `kmeans` function from the Statistics toolbox in Matlab.
 There are two benefits:
 
-1. The basic implementation is much faster than the Statistics toolbox version. We also have a few modern options that the toolbox versino lacks; e.g., we implement [K-means++](https://en.wikipedia.org/wiki/K-means%2B%2B) for initialization.
+1. The basic implementation is much faster than the Statistics toolbox version. We also have a few modern options that the toolbox version lacks; e.g., we implement [K-means++](https://en.wikipedia.org/wiki/K-means%2B%2B) for initialization.
 2. We have a new variant, called sparsified KMeans, that preconditions and then samples the data, and this version can be thousands of times faster, and is designed for big data sets that are unmangeable otherwise
 
 # Installation
