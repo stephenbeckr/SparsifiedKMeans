@@ -45,7 +45,7 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, bestDistancesTrue] 
 %   'MLcorrection'          Theoretical normalization; keep this true
 %                               (default). Included only for testing
 %   'ColumnSamples'         If false (default), input is n x p, i.e.,
-%                               samples as row.s If true, input is p x n
+%                               samples as rows. If true, input is p x n
 %                               and the output is also transposed.
 %   
 
