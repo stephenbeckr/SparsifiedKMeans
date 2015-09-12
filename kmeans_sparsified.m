@@ -1,5 +1,5 @@
-function [bestAssignments, bestCenters, SUMD, bestDistances, bestDistancesTrue] = kmeans_sparsified(X, K, varargin)
-% [IDX, C, SUMD, D] = kmeans_sparsified(X, K)
+function [bestAssignments, bestCenters, SUMD, bestDistances, D_twoPass, assignments_twoPass] = kmeans_sparsified(X, K, varargin)
+% [IDX, C, SUMD, D, D_twoPass, IDX_twoPass] = kmeans_sparsified(X, K)
 %
 % Note: to maintain compatability with Matlab, we assume the points
 %   are ROWS of X, so X is a n x p matrix
@@ -8,12 +8,29 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, bestDistancesTrue] 
 % IMPORTANT: to run the "fast" (sparsified) code, make sure to 
 %   set 'Sparsify',true
 %
+% Outputs:
+%
+% IDX is the index, between 1 and K, that indicates which cluster
+%   each sample belongs to.
+% C is the p x K matrix of cluster centers (aka centroids)
+% SUMD is a 1 x K vector where each entry is the sum-of-squared-distances
+%   of that cluster to its cluster members. sum(SUMD) is the global
+%   objective. Note: this is calculated using D, not D_twoPass.
+% D returns the distance from each point to every centroid
+% D_twoPass -- if this output is requested, then this returns
+%   an improved version of D that uses a second pass through the
+%   entire dataset. For extremely large datasets, this will be slow.
+%   If 'Sparsify' is set to false, then D_twoPass is the same as D.
+% IDX_twoPass is the index of cluster assignments, using the
+%   improved information
+%
 % Examples:
 %   [IDX,C] = kmeans_sparsified( X, 5 )
 %   [IDX,C] = kmeans_sparsified( X', 5,'ColumnSamples',true,'tol',1e-4)
 %
-% Most of the options are the same as Matlab, though we do not yet
-%   have SUMD implemented
+% Most of the options are the same as Matlab
+%   D returns the Euclidean distance (e.g., sqrt( sum_i x_i^2 ) )
+%   while SUMD returns a vector of squared Euclidean distances
 % Options:
 %   'Replicates', r         Run K-Means r times, keeping the best
 %   'Start'                 if 'sample', picks K random data points
@@ -47,11 +64,27 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, bestDistancesTrue] 
 %   'ColumnSamples'         If false (default), input is n x p, i.e.,
 %                               samples as rows. If true, input is p x n
 %                               and the output is also transposed.
+%
+%   'DataFile'              If this is true and a valid file name of a .mat file,
+%                               then matlab loads the file and will read
+%                               in parts of the file at a time. This is
+%                               useful when the file is larger in size
+%                               than the RAM of your computer. The file
+%                               is broken into as few pieces as possible
+%                               such that each piece is smaller than
+%                               MB_limit
+%       IMPORTANT: the .mat DataFile MUST be saved with -v7.3 format,
+%       which is NOT default.
+%   'MB_limit'              The limit, in megabytes (MB), of how large
+%                               each piece of the main file can be.
+%                               Used only with the 'DataFile' option
+%   'DataFileVerbose'       If true (default is false), tells you
+%                               how many chunks the file is broken into.
 %   
 
 % Stephen Becker and Farhad Pourkamali-Anaraki
-% Stephen.Becker@Colorado.edu, 8/5/2015
-
+% Stephen.Becker@Colorado.edu, 8/5/2015 -- 9/11/2015
+% see https://github.com/stephenbeckr/SparsifiedKMeans
 
 p = inputParser;
 addParameter(p,'Replicates',1);
@@ -69,6 +102,9 @@ validEmptyActions={'singleton','error','drop'};
 addParameter(p,'EmptyAction','singleton',@(x) any(validatestring(x,validEmptyActions) ));
 addParameter(p,'ColumnSamples',false); 
 addParameter(p,'MLcorrection',true); % normalization according to maximum likelihood derivation
+addParameter(p,'DataFile',[]);
+addParameter(p,'MB_limit',500 ); % only used if reading from disk
+addParameter(p,'DataFileVerbose',false);
 parse(p,varargin{:});
 
 Replicates  = p.Results.Replicates;
@@ -76,25 +112,41 @@ start       = p.Results.Start;
 MaxIter     = p.Results.MaxIter;
 Display     = p.Results.Display;
 tol         = p.Results.Tol;
-Sketch      = p.Results.Sparsify;
+Sparsify    = p.Results.Sparsify;
 SparsityLevel    = p.Results.SparsityLevel; % used when Sketching
 SketchType  = p.Results.SketchType; % Hadamard or DCT or Nothing
 EmptyAction = p.Results.EmptyAction;
 PrintEvery  = p.Results.PrintEvery;
 ColumnSamples = p.Results.ColumnSamples;
-MLcorrection= p.Results.MLcorrection && Sketch;
+DataFile    = p.Results.DataFile;
+MB_limit    = p.Results.MB_limit;
+MLcorrection= p.Results.MLcorrection && Sparsify;
+DataFileVerbose = p.Results.DataFileVerbose;
 
-if ~ColumnSamples
-    X   = X';
+% Do we load X from disk?
+LoadFromDisk    = ~isempty(DataFile) && 2==exist(DataFile,'file');
+
+if LoadFromDisk
+    if ~Sparsify
+        error('No reason to turn on "LoadFromDisk" option if not sampling');
+    end
+    if ~isempty(X)
+        warning('Loading data from disk, ignoring "X" input. Are you sure code is OK?');
+    end
+    [p,n]   = sampleAndMixFromLargeFile( DataFile, 0, [], [], 'ColumnSamples',ColumnSamples);
+else
+    if ~ColumnSamples
+        X   = X';
+    end
+    [p,n]   = size(X);
 end
 
-[p,n]       = size(X);
 if n<K
     error('kmeans_sparsified:badDimensions','X must have more samples than the number of clusters.');
 end
 
 p2          = p;
-if Sketch
+if Sparsify
     if strcmpi(SketchType,'auto')
         if p == 2^nextpow2(p)
             SketchType = 'Hadamard';
@@ -134,7 +186,7 @@ if Sketch
     end
     
     if strcmpi( SketchType, 'Nothing' ) || strcmpi( SketchType,'none' )
-        D   = @(x) x;
+        DiagRademacher   = @(x) x;
         % Note: if X has a lot of zero entries,
         %   then if we don't mix, after we sample, we'll have zero entries
         %   they will be mistaken in the updates. So, add a small offset
@@ -142,23 +194,32 @@ if Sketch
     else
         d   = sign(rand(p2,1));
         DD  = spdiags( d, 0, p2, p2 );
-        D   = @(x) DD*x;
+        DiagRademacher   = @(x) DD*x;
     end
     
-    if nargout > 4
-        XFull = X; % save this for testing
+    if LoadFromDisk
+        XFull   = [];
+        precond = @(X)H(DiagRademacher(upsample(X))); % Mixing
+        X = sampleAndMixFromLargeFile( DataFile, SparsityLevel, precond, p2,...
+            'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
+            'Verbose',DataFileVerbose);
+    else
+        if nargout > 4
+            XFull = X; % save this for testing
+        end
+        X   = H(DiagRademacher(upsample(X))); % Mixing
+        
+        %     small_p     = round( SparsityLevel*p );
+        small_p     = round( SparsityLevel*p2 );
+        Y           = spalloc(p,n,small_p*n);
+        for j = 1:n
+            replace = false;
+            ind     = randsample(p2,small_p, replace );
+            Y(ind,j)    = X(ind,j)/SparsityLevel;
+        end
+        X   = Y;
     end
-    X   = H(D(upsample(X))); % Mixing
     
-%     small_p     = round( SparsityLevel*p );
-    small_p     = round( SparsityLevel*p2 );
-    Y           = spalloc(p,n,small_p*n);
-    for j = 1:n
-        replace = false;
-        ind     = randsample(p2,small_p, replace );
-        Y(ind,j)    = X(ind,j)/SparsityLevel;
-    end
-    X   = Y;
     
     if strcmpi(Display,'iter') || strcmpi(Display,'final')
        fprintf('Randomly taking %.1f%% of the data; actual dataset is %.1f%% sparse\n',...
@@ -221,7 +282,6 @@ for nTrials = 1:Replicates
                 %centers(:,ki)   = 0;
             else
                 if MLcorrection
-                    % Not sure why we need SparsityLevel in there...
                     centers(:,ki)   = SparsityLevel*full( sum(X(:,ind),2))./(full(sum(NormalizationMatrix(:,ind),2) )+1e-16);
                 else
                     centers(:,ki)   = mean( full(X(:, ind ) ), 2 );
@@ -273,17 +333,28 @@ for nTrials = 1:Replicates
     end
 end
 
-SUMD = []; % not used
+SUMD    = zeros(K,1);
+for ki = 1:K
+    ind_i    =  bestAssignments == ki ;
+    SUMD(ki) = sum(distances(:,ind_i).^2); % note that we do NOT take sqrt
+end
 
-if Sketch
-    bestCenters   = downsample( D( Ht(bestCenters) ) ); % undo mixing
-    
+if Sparsify
+    bestCenters   = downsample( DiagRademacher( Ht(bestCenters) ) ); % undo mixing
     
     if nargout > 4
-        [bestAssignments,bestDistancesTrue]     = findClusterAssignments(XFull,bestCenters);
+        if LoadFromDisk
+            warning('Requires a second pass over the dataset');
+            [assignments_twoPass,D_twoPass]     = ...
+                recalculateAssignmentLargeFile(DataFile, bestCenters, ...
+            'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
+            'Verbose',DataFileVerbose);
+        else
+            [assignments_twoPass,D_twoPass]     = findClusterAssignments(XFull,bestCenters);
+        end
     end
 else
-    if nargout > 4, bestDistancesTrue = bestDistances; end
+    if nargout > 4, D_twoPass = bestDistances; end
 end
 
 if ~ColumnSamples
@@ -291,7 +362,9 @@ if ~ColumnSamples
     bestCenters   = bestCenters';
     bestDistances = bestDistances';
     bestAssignments = bestAssignments';
+    SUMD          = SUMD';
     if nargout > 4
-        bestDistancesTrue = bestDistancesTrue';
+        D_twoPass = D_twoPass';
+        assignments_twoPass = assignments_twoPass';
     end
 end

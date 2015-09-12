@@ -1,4 +1,3 @@
-
 function [assignments,distances,centers] = findClusterAssignments( X, centers )
 % assignments = findClusterAssignments( X, centers )
 %
