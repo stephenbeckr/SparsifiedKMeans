@@ -35,10 +35,10 @@ nReplicates     = 20;
 
 warning('off','kmeans_sparsified:dropCluster');
 tic
-[indx,centers,sumd,dist_sketch, dist] = kmeans_sparsified( X, k,'ColumnSamples',true,...
+[indx,centers,sumd,dist_sketch] = kmeans_sparsified( X, k,'ColumnSamples',true,...
     'Display','off','Replicates',nReplicates,'Sparsify',false, 'start','++');
 time_faster     = toc;
-obj_faster      = norm(dist);
+obj_faster      = norm(dist_sketch);
 centers_faster = centers;
 
 fprintf('our version:\t\tobjective %.3e, time %.2e\n', obj_faster, time_faster );
@@ -48,11 +48,11 @@ fprintf('our version:\t\tobjective %.3e, time %.2e\n', obj_faster, time_faster )
 disp('--- Sparsified k-means ---');
 SparsityLevel = 0.05;
 tic
-[indx,centers,sumd,dist_sketch, dist] = kmeans_sparsified( X, k,'ColumnSamples',true,...
+[indx,centers,sumd,dist_sketch] = kmeans_sparsified( X, k,'ColumnSamples',true,...
     'Display','off','Replicates',nReplicates,...
     'Sparsify',true,'SparsityLevel',SparsityLevel );
 time_fastest    = toc;
-obj_fastest     = norm(dist);
+obj_fastest     = norm(dist_sketch);
 centers_fastest = centers;
 fprintf('our sparse version:\tobjective %.3e, time %.2e\n', obj_fastest, time_fastest );
 
@@ -62,12 +62,12 @@ MB_limit    = 5; % size, in MB, of how much RAM we have to work with
                  % Try 500 or 1000 (e.g., 1 GB). Here, we set it very small
                  % just for this example.
 tic
-[indx,centers,sumd,dist_sketch, dist] = kmeans_sparsified( [], k,'ColumnSamples',true,...
+[indx,centers,sumd,dist_sketch] = kmeans_sparsified( [], k,'ColumnSamples',true,...
     'Display','off','Replicates',nReplicates,...
     'Sparsify',true,'SparsityLevel',SparsityLevel,'DataFile',myfile,...
     'MB_limit',1,'DataFileVerbose',true);
 time_fastest_disk    = toc;
-obj_fastest_disk     = norm(dist);
+obj_fastest_disk     = norm(dist_sketch);
 centers_fastest_disk = centers;
 fprintf('our sparse version (from disk):\tobjective %.3e, time %.2e\n', obj_fastest_disk, time_fastest_disk );
 
