@@ -1,5 +1,5 @@
-function [bestAssignments, bestCenters, SUMD, bestDistances, D_twoPass, assignments_twoPass] = kmeans_sparsified(X, K, varargin)
-% [IDX, C, SUMD, D, D_twoPass, IDX_twoPass] = kmeans_sparsified(X, K)
+function [bestAssignments, bestCenters, SUMD, bestDistances, centers_twoPass] = kmeans_sparsified(X, K, varargin)
+% [IDX, C, SUMD, D, C_twoPass] = kmeans_sparsified(X, K)
 %
 % Note: to maintain compatability with Matlab, we assume the points
 %   are ROWS of X, so X is a n x p matrix
@@ -17,12 +17,10 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, D_twoPass, assignme
 %   of that cluster to its cluster members. sum(SUMD) is the global
 %   objective. Note: this is calculated using D, not D_twoPass.
 % D returns the distance from each point to every centroid
-% D_twoPass -- if this output is requested, then this returns
-%   an improved version of D that uses a second pass through the
+% C_twoPass -- if this output is requested, then this returns
+%   an improved version of C that uses a second pass through the
 %   entire dataset. For extremely large datasets, this will be slow.
-%   If 'Sparsify' is set to false, then D_twoPass is the same as D.
-% IDX_twoPass is the index of cluster assignments, using the
-%   improved information
+%   If 'Sparsify' is set to false, then C_twoPass is the same as C.
 %
 % Examples:
 %   [IDX,C] = kmeans_sparsified( X, 5 )
@@ -38,6 +36,8 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, D_twoPass, assignme
 %                               the space
 %                           if 'Arthur' or '++', uses Arthur/Vassilvitskii 2007
 %                               K-means++ algorithm to initialize
+%                           if a matrix, then use this as starting point
+%                           (K x p, or 'ColumnSamples' is true, then p x K)
 %   'MaxIter'               How many iterations to run for each trial
 %                               (default: 100)
 %   'Display'               either 'off' (default),'iter' or 'final'
@@ -88,8 +88,9 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, D_twoPass, assignme
 
 p = inputParser;
 addParameter(p,'Replicates',1);
-expectedStart = {'sample','uniform','Arthur','k-means++','++'};
-addParameter(p,'Start','Arthur',@(x) any(validatestring(x,expectedStart)));
+% expectedStart = {'sample','uniform','Arthur','k-means++','++'};
+% addParameter(p,'Start','Arthur',@(x) any(validatestring(x,expectedStart)));
+addParameter(p,'Start','Arthur' ); % allow matrix too for warm-start
 addParameter(p,'MaxIter',100);
 validDispActions={'off','iter','final'};
 addParameter(p,'Display',false,@(x) any(validatestring(x,validDispActions)));
@@ -197,24 +198,26 @@ if Sparsify
         DiagRademacher   = @(x) DD*x;
     end
     
+    mix   = @(X) H(DiagRademacher(upsample(X))); % Preconditioning
+    unmix = @(X) downsample( DiagRademacher( Ht(X) ) );
+    
     if LoadFromDisk
         XFull   = [];
-        precond = @(X)H(DiagRademacher(upsample(X))); % Mixing
-        X = sampleAndMixFromLargeFile( DataFile, SparsityLevel, precond, p2,...
+        X = sampleAndMixFromLargeFile( DataFile, SparsityLevel, mix, p2,...
             'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
             'Verbose',DataFileVerbose);
     else
         if nargout > 4
             XFull = X; % save this for testing
         end
-        X   = H(DiagRademacher(upsample(X))); % Mixing
+        X   = mix(X);
         
-        %     small_p     = round( SparsityLevel*p );
+        % small_p     = round( SparsityLevel*p );
         small_p     = round( SparsityLevel*p2 );
         Y           = spalloc(p,n,small_p*n);
+        replace = false;
         for j = 1:n
-            replace = false;
-            ind     = randsample(p2,small_p, replace );
+            ind         = randsample(p2,small_p, replace );
             Y(ind,j)    = X(ind,j)/SparsityLevel;
         end
         X   = Y;
@@ -230,30 +233,44 @@ if Sparsify
         % a bit of extra memory, but makes it easy
         NormalizationMatrix     = spones(X);
     end
-    
+else
+    mix     = @(x) x; % do nothing
 end
 
 
-
-switch lower(start)
-    case 'uniform'
-        mn  = full(min(X(:)));
-        mx  = full(max(X(:)));
+if ischar(start)
+    switch lower(start)
+        case 'uniform'
+            mn  = full(min(X(:)));
+            mx  = full(max(X(:)));
+    end
 end
 
 bestObjective = Inf;
 for nTrials = 1:Replicates
     
-    switch lower(start)
-        case 'sample'
-            ind         = randsample(n,K);
-            centers     = full(X(:,ind));
-        case 'uniform'
-            centers     = (mx-mn)*rand(p2,K) - mn;
-        case {'arthur','++','kmeans++','k-means++','k-means-++'}
-            centers     = full(Arthur_initialization(X,K));
-        otherwise
-            error('cannot handle other types of "Start" values');
+    if ischar(start)
+        switch lower(start)
+            case 'sample'
+                ind         = randsample(n,K);
+                centers     = full(X(:,ind));
+            case 'uniform'
+                centers     = (mx-mn)*rand(p2,K) - mn;
+            case {'arthur','++','kmeans++','k-means++','k-means-++'}
+                centers     = full(Arthur_initialization(X,K));
+            otherwise
+                error('cannot handle other types of "Start" values');
+        end
+    else
+        % start is an array of the cluster centers, provided by the user
+        if ~ColumnSamples
+            start = start'; % want it of the size p x K
+        end
+        centers = mix( start );
+        if Replicates > 1
+            warning('kmeans_sparsified:deterministicCenters',...
+                'initialization is specified, so running more than 1 replicate is not helpful');
+        end
     end
     
     for its = 1:MaxIter
@@ -340,21 +357,32 @@ for ki = 1:K
 end
 
 if Sparsify
-    bestCenters   = downsample( DiagRademacher( Ht(bestCenters) ) ); % undo mixing
+    bestCenters   = unmix( bestCenters ); % undo DCT or Hadamard if necessary
     
     if nargout > 4
         if LoadFromDisk
+            % FIXME
             warning('Requires a second pass over the dataset');
             [assignments_twoPass,D_twoPass]     = ...
                 recalculateAssignmentLargeFile(DataFile, bestCenters, ...
-            'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
-            'Verbose',DataFileVerbose);
+                'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
+                'Verbose',DataFileVerbose);
         else
-            [assignments_twoPass,D_twoPass]     = findClusterAssignments(XFull,bestCenters);
+            centers_twoPass = zeros(p,K);
+            for ki = 1:K
+                ind  = find( bestAssignments == ki );
+                if ~isempty(ind)
+                    centers_twoPass(:,ki)   = mean( full(XFull(:, ind ) ), 2 );
+                end
+            end
+
         end
     end
 else
-    if nargout > 4, D_twoPass = bestDistances; end
+    % If we do not sparsify, then there is no distinction in # of passes...
+    if nargout > 4
+        centers_twoPass = bestCenters;
+    end
 end
 
 if ~ColumnSamples
@@ -364,7 +392,6 @@ if ~ColumnSamples
     bestAssignments = bestAssignments';
     SUMD          = SUMD';
     if nargout > 4
-        D_twoPass = D_twoPass';
-        assignments_twoPass = assignments_twoPass';
+        centers_twoPass = centers_twoPass';
     end
 end
