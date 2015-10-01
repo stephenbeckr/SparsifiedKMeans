@@ -47,10 +47,10 @@ fprintf('stats toolbox version:\tobjective %.3e, time %.2e\n', obj_Matlab, time_
 %   but a smarter implementation
 warning('off','kmeans_sparsified:dropCluster');
 tic
-[indx,centers,sumd,dist_sketch, dist] = kmeans_sparsified( X, k,'ColumnSamples',true,...
+[indx,centers,sumd,dist_sketch] = kmeans_sparsified( X, k,'ColumnSamples',true,...
     'Display','off','Replicates',nReplicates,'Sparsify',false, 'start','++');
 time_faster     = toc;
-obj_faster      = norm(dist);
+obj_faster      = norm(dist_sketch);
 centers_faster = centers;
 
 fprintf('our version:\t\tobjective %.3e, time %.2e\n', obj_faster, time_faster );
@@ -59,11 +59,11 @@ fprintf('our version:\t\tobjective %.3e, time %.2e\n', obj_faster, time_faster )
 %   (Note: it will not necessarily be much faster until n>1e4 or so)
 SparsityLevel = 0.05;
 tic
-[indx,centers,sumd,dist_sketch, dist] = kmeans_sparsified( X, k,'ColumnSamples',true,...
+[indx,centers,sumd,dist_sketch] = kmeans_sparsified( X, k,'ColumnSamples',true,...
     'Display','off','Replicates',nReplicates,...
     'Sparsify',true,'SparsityLevel',SparsityLevel );
 time_fastest    = toc;
-obj_fastest     = norm(dist);
+obj_fastest     = norm(dist_sketch);
 centers_fastest = centers;
 fprintf('our sparse version:\tobjective %.3e, time %.2e\n', obj_fastest, time_fastest );
 %% Plot results
