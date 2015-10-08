@@ -80,6 +80,12 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, centers_twoPass] = 
 %                               Used only with the 'DataFile' option
 %   'DataFileVerbose'       If true (default is false), tells you
 %                               how many chunks the file is broken into.
+%   'SparsityIgnoreUpsampling' If true (default is false), then if using
+%                              a sketch like Hadamard which may upsample,
+%                              we ignore the new larger upsampled dimension
+%                              when calculating sparsity. So this will
+%                              result in faster computation but worse
+%                              accuracy.
 %   
 
 % Stephen Becker and Farhad Pourkamali-Anaraki
@@ -106,6 +112,7 @@ addParameter(p,'MLcorrection',true); % normalization according to maximum likeli
 addParameter(p,'DataFile',[]);
 addParameter(p,'MB_limit',500 ); % only used if reading from disk
 addParameter(p,'DataFileVerbose',false);
+addParameter(p,'SparsityIgnoreUpsampling',false); % added 10/7/15
 parse(p,varargin{:});
 
 Replicates  = p.Results.Replicates;
@@ -122,6 +129,7 @@ ColumnSamples = p.Results.ColumnSamples;
 DataFile    = p.Results.DataFile;
 MB_limit    = p.Results.MB_limit;
 MLcorrection= p.Results.MLcorrection && Sparsify;
+SparsityIgnoreUpsampling = p.Results.SparsityIgnoreUpsampling;
 DataFileVerbose = p.Results.DataFileVerbose;
 
 % Do we load X from disk?
@@ -212,8 +220,15 @@ if Sparsify
         end
         X   = mix(X);
         
-        % small_p     = round( SparsityLevel*p );
-        small_p     = round( SparsityLevel*p2 );
+%         % small_p     = round( SparsityLevel*p );
+%         small_p     = round( SparsityLevel*p2 );
+        
+        if SparsityIgnoreUpsampling
+            small_p     = round( SparsityLevel*p );
+        else
+            small_p     = round( SparsityLevel*p2 );
+        end
+        
         Y           = spalloc(p,n,small_p*n);
         replace = false;
         for j = 1:n
