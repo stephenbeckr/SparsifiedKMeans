@@ -25,6 +25,9 @@ function [assignments,distances,centers] = findClusterAssignments( X, centers )
 % Stephen Becker, stephen.becker@colorado.edu
 % July 22, 2015 -- Aug 6 2015
 
+persistent mexFileExists
+if isempty(mexFileExists), mexFileExists = 0; end
+
 [p,n]   = size(X);
 [pp,k]  = size(centers);
 % centers = full(centers); % allow it to be sparse
@@ -33,7 +36,7 @@ if ~isequal(p,pp), error('Array of centers not of correct size'); end
 distances   = zeros( k, n );
 
 if issparse(X)
-    if 3==exist('SparseMatrixMinusCluster','file') 
+    if mexFileExists || 3==exist('SparseMatrixMinusCluster','file') 
         % use the fast mex code
         if issparse(centers)
             for ki = 1:k
@@ -45,6 +48,7 @@ if issparse(X)
                 distances( ki, : ) =SparseMatrixMinusCluster(X, centers(:,ki) );
             end
         end
+        mexFileExists = true;
     else
         warning('findClusterAssigments:noMex','cannot find mex file in your path, using slower code');
         if issparse(centers)
