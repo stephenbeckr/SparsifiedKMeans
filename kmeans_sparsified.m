@@ -113,6 +113,7 @@ addParameter(p,'DataFile',[]);
 addParameter(p,'MB_limit',500 ); % only used if reading from disk
 addParameter(p,'DataFileVerbose',false);
 addParameter(p,'SparsityIgnoreUpsampling',false); % added 10/7/15
+addParameter(p,'FORCE_BUG',false); % added 11/21/15
 parse(p,varargin{:});
 
 Replicates  = p.Results.Replicates;
@@ -129,6 +130,7 @@ ColumnSamples = p.Results.ColumnSamples;
 DataFile    = p.Results.DataFile;
 MB_limit    = p.Results.MB_limit;
 MLcorrection= p.Results.MLcorrection && Sparsify;
+FORCE_BUG   = p.Results.FORCE_BUG; % do NOT turn on unless you are testing
 SparsityIgnoreUpsampling = p.Results.SparsityIgnoreUpsampling;
 DataFileVerbose = p.Results.DataFileVerbose;
 
@@ -201,7 +203,12 @@ if Sparsify
         %   they will be mistaken in the updates. So, add a small offset
         X   = X + 2*eps; % eps is machine epsilon
     else
-        d   = sign(rand(p2,1));
+        % Nov 21 2015, found bug. Allow us to recreate bug so we can re-test results
+        if FORCE_BUG 
+            d   = sign(rand(p2,1));
+        else
+            d   = sign(randn(p2,1));
+        end
         DD  = spdiags( d, 0, p2, p2 );
         DiagRademacher   = @(x) DD*x;
     end
