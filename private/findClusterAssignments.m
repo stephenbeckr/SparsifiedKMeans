@@ -1,4 +1,4 @@
-function [assignments,distances,centers] = findClusterAssignments( X, centers )
+function [assignments,distances,centers] = findClusterAssignments( X, centers, tryBuiltinMex )
 % assignments = findClusterAssignments( X, centers )
 %
 %   takes a data matrix X, which is p x n,
@@ -22,11 +22,18 @@ function [assignments,distances,centers] = findClusterAssignments( X, centers )
 %   (If a cluster has nothing assigned to it, we arbitarily
 %    give it a center-point of 0 )
 %
+% ... = findClusterAssignments( X, centers, tryBuiltinMex )
+%   will try using Matlab's pdist2mex mex file which exists in some
+%   newer versions of Matlab, if tryBuilinMex is true (default)
+%   This only affects the case when both X and centers are dense.
+%
 % Stephen Becker, stephen.becker@colorado.edu
 % July 22, 2015 -- Aug 6 2015
 
-persistent mexFileExists
+persistent mexFileExists  matlabMexFileExists
 if isempty(mexFileExists), mexFileExists = 0; end
+
+if nargin < 3, tryBuiltinMex = true; end
 
 [p,n]   = size(X);
 [pp,k]  = size(centers);
@@ -34,7 +41,8 @@ if isempty(mexFileExists), mexFileExists = 0; end
 if ~isequal(p,pp), error('Array of centers not of correct size'); end
 
 distances   = zeros( k, n );
-
+do_sqrt     = false;
+skip_min    = false;
 if issparse(X)
     if mexFileExists || 3==exist('SparseMatrixMinusCluster','file') 
         % use the fast mex code
@@ -72,13 +80,38 @@ if issparse(X)
     end
     
 else
-    for ki = 1:k
-        differences        = bsxfun( @minus, X, centers(:,ki) );
-        distances( ki, : ) = sqrt( sum(differences.^2,1) );
+    % Dense case. Optimized (May 2016)
+    if tryBuiltinMex && ~any(~matlabMexFileExists)
+        if isempty(matlabMexFileExists)
+            matlabMexFileExists = moveMatlabMex();
+        end
+    end
+    if tryBuiltinMex && ~any(~matlabMexFileExists)
+        [distances,assignments] = pdist2mex( centers, X, 'euc', [], 1, [] );
+        skip_min    = true;
+    else
+        % May 2016, expand quadratic
+        nrm2    = sum( X.^2, 1 ); % pre-calculate
+        for ki = 1:k
+            distances( ki, : ) = nrm2 -2*(X'*centers(:,ki))' + norm(centers(:,ki))^2;
+            %         distances( ki, : ) = nrm2 -2*(centers(:,ki)'*X) + norm(centers(:,ki))^2; % same speed
+            % Older, slower code, prior to May 2016
+            %         differences        = bsxfun( @minus, X, centers(:,ki) );
+            %         distances( ki, : ) = sqrt( sum(differences.^2,1) );
+        end
+        do_sqrt = true;
     end
 end
 
-[distances,assignments] = min( distances, [], 1 );
+if ~skip_min
+    [distances,assignments] = min( distances, [], 1 );
+    % (for pdist2mex, we already took the min)
+end
+if do_sqrt
+    % only do this on the minimum, not on all
+    distances = sqrt(distances);
+end
+
 
 if nargout >= 3
     % user has requested new centers
@@ -90,4 +123,25 @@ if nargout >= 3
             centers(:,ki)   = mean( full(X(:, ind ) ), 2 );
         end
     end
+end
+
+
+function flag = moveMatlabMex()
+% successFlag = moveMatlabMex()
+%   successFlag = 1 means that it worked
+
+mxFile  = fullfile(matlabroot,'toolbox','stats','stats','private',['pdist2mex.' mexext()] );
+flag    = 0; % fail, by default
+if 3==exist(mxFile,'file')
+    % the user may not have the stats toolbox
+    % we have to copy somewhere else since Matlab won't read it
+    %   if it is in a "private" subdirectory
+    [success,message,messageID] = copyfile(mxFile, tempdir );
+    if success==1 || strcmpi(messageID,'MATLAB:COPYFILE:ReadOnly')
+        addpath(tempdir)
+        fprintf('Added mex file to your temporary \n directory %s or it already exists(can delete later)\n', tempdir );
+        flag = 1;
+    end
+else
+    disp('Cannot find pdist2mex -- do you have the stats toolbox?');
 end
