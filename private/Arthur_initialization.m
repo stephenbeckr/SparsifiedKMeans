@@ -1,7 +1,10 @@
-function centers = Arthur_initialization( X, K )
+function centers = Arthur_initialization( X, K, gamma )
 % centers = Arthur_initialization( X, K )
 %   finds K centers to initialize K-means with
 %   This is the so-called K-means++ initialization
+%
+% ... = Arthur_initialization( X, K, gamma )
+%   will use newer code to find distances between sparse points
 %
 %   Note: expects X to be p x n, with datapoints as columns, not rows
 %
@@ -21,16 +24,28 @@ function centers = Arthur_initialization( X, K )
 if K<1, error('K must be >= 1'); end
 [p,n]   = size(X);
 
+if nargin < 3, gamma = []; end
+if isempty(gamma)
+    findDist = @(X,ref)findClusterAssignments( X, ref );
+else
+    findDist = @(X,ref)findClusterAssignments( X, full(ref), [], gamma );
+end
+
 % First center chosen uniformly at random:
 i           = randi( n, 1 );
 chosenInd   = i;
 centers     = X(:,i);
 for k = 1:(K-1)
-    [~, dist] = findClusterAssignments( X, centers );
+    [~, dist] = findDist( X, centers );
     % now choose a new point with non-uniform probability,
     %   based on dist^2
     % Since we only need one point, we can sample with or without
     %   replacement
+    if ~isreal(dist)
+        error('distance is imaginary! Debug please');
+    elseif any(dist<0)
+        error('distance has negative components! Debug please');
+    end
     if norm(dist)>0
         i   = randsample( n, 1, true, dist.^2 );
     else

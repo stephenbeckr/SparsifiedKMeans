@@ -1,4 +1,4 @@
-function [assignments,distances,centers] = findClusterAssignments( X, centers, tryBuiltinMex )
+function [assignments,distances,centers] = findClusterAssignments( X, centers, tryBuiltinMex, gamma )
 % assignments = findClusterAssignments( X, centers )
 %
 %   takes a data matrix X, which is p x n,
@@ -24,69 +24,131 @@ function [assignments,distances,centers] = findClusterAssignments( X, centers, t
 %
 % ... = findClusterAssignments( X, centers, tryBuiltinMex )
 %   will try using Matlab's pdist2mex mex file which exists in some
-%   newer versions of Matlab, if tryBuilinMex is true (default)
+%   newer versions of Matlab, if tryBuiltinMex is true (default)
 %   This only affects the case when both X and centers are dense.
+%
+% ... = findClusterAssignments( X, centers, tryBuiltinMex, gamma )
+%   will use newer code to estimate distances; only affects
+%   the case when X is sparse. Set gamma=[] to turn off (default)
 %
 % Stephen Becker, stephen.becker@colorado.edu
 % July 22, 2015 -- Aug 6 2015
 
-persistent mexFileExists  matlabMexFileExists
-if isempty(mexFileExists), mexFileExists = 0; end
-
-if nargin < 3, tryBuiltinMex = true; end
+persistent mexFileExists_A mexFileExists_B  matlabmexFileExists
+if isempty(mexFileExists_A), mexFileExists_A = 0; end
+if isempty(mexFileExists_B), mexFileExists_B = 0; end
+%{
+We have 3 mex files that can speed things up.
+Since this code is called often, we only want to check once
+to see if these files exist
+  mexFileExists_A   corresponds to our own mex file
+    SparseMatrixMinusCluster.c
+  mexFileExists_B   corresponds to our own mex file
+    SparseMatrixInnerProduct.c
+  matlabmexFileExists corresponds to a mex file written by Mathworks
+    as part of their statistics toolbox, pdist2mex.c
+%}
+if nargin < 3, tryBuiltinMex = []; end
+if isempty(tryBuiltinMex), tryBuiltinMex = true; end   % default
+if nargin < 4, gamma = []; end
 
 [p,n]   = size(X);
 [pp,k]  = size(centers);
 % centers = full(centers); % allow it to be sparse
 if ~isequal(p,pp), error('Array of centers not of correct size'); end
 
+LARGE_K     = 2; % controls behavior of code
+
 distances   = zeros( k, n );
 do_sqrt     = false;
 skip_min    = false;
 if issparse(X)
-    if mexFileExists || 3==exist('SparseMatrixMinusCluster','file') 
-        % use the fast mex code
-        if issparse(centers)
-            for ki = 1:k
-                ind     = find( centers(:,ki) );
-                distances( ki, : ) =SparseMatrixMinusCluster(X(ind,:), full(centers(ind,ki)) );
+    if ~isempty(gamma)
+        if mexFileExists_B || 3==exist('SparseMatrixInnerProduct','file')
+            % use the fast mex code
+            if issparse(centers)
+                normX2    = SparseMatrixColumnNormSq(X); % do just once
+                normC2    = SparseMatrixColumnNormSq(centers);
+                crossTermAll   = ( X'*centers )';
+                for ki = 1:k
+                    gamma_center    = nnz(centers(:,ki))/size(centers,1); % changes...
+                    distances( ki, : ) = bsxfun(@plus, gamma*normX2 - 2*crossTermAll(ki,:) , gamma_center*normC2(ki) );
+                end
+                
+                % Old code (and slightly different calculation,
+                %  likely to lead to zeros if both vectors very sparse)
+%                 for ki = 1:k
+%                     ind     = find( centers(:,ki) );
+%                     gamma_center    = length(ind)/size(centers,1); % changes...
+%                     [crossTerm,normX2] = SparseMatrixInnerProduct( X(ind,:), full(centers(ind,ki)) );
+%                     distances( ki, : ) = bsxfun(@plus, gamma*normX2 - 2*crossTerm , gamma_center*norm(full(centers(ind,ki)))^2 );
+%                 end
+            else
+                if k <= LARGE_K
+                    for ki = 1:k
+                        [crossTerm,normX2] = SparseMatrixInnerProduct( X, centers(:,ki) );
+                        distances( ki, : ) = bsxfun(@plus, gamma*normX2 - 2*crossTerm , norm(centers(:,ki))^2 );
+                    end
+                else
+                    % do batched operations
+                    normX2    = SparseMatrixColumnNormSq(X); % do just once
+                    crossTermAll   = ( X'*centers )';
+                    for ki = 1:k
+                        distances( ki, : ) = bsxfun(@plus, gamma*normX2 - 2*crossTermAll(ki,:) , norm(centers(:,ki))^2 );
+                    end
+                end
             end
+            mexFileExists_B = true;
+            do_sqrt     = true;
+            distances   = max( distances, 0 ); % makes it biased though...
         else
-            for ki = 1:k
-                distances( ki, : ) =SparseMatrixMinusCluster(X, centers(:,ki) );
-            end
+            error('not yet implemented');
         end
-        mexFileExists = true;
     else
-        warning('findClusterAssigments:noMex','cannot find mex file in your path, using slower code');
-        if issparse(centers)
-            for ki = 1:k
-                for j = 1:n
-                    ind     = find( X(:,j) );
-                    ind     = intersect( ind, find(centers(:,ki) ) );
-                    if ~isempty(ind)
+        
+        if mexFileExists_A || 3==exist('SparseMatrixMinusCluster','file')
+            % use the fast mex code
+            if issparse(centers)
+                for ki = 1:k
+                    ind     = find( centers(:,ki) );
+                    distances( ki, : ) =SparseMatrixMinusCluster(X(ind,:), full(centers(ind,ki)) );
+                end
+            else
+                for ki = 1:k
+                    distances( ki, : ) =SparseMatrixMinusCluster(X, centers(:,ki) );
+                end
+            end
+            mexFileExists_A = true;
+        else
+            warning('findClusterAssigments:noMex','cannot find mex file in your path, using slower code');
+            if issparse(centers)
+                for ki = 1:k
+                    for j = 1:n
+                        ind     = find( X(:,j) );
+                        ind     = intersect( ind, find(centers(:,ki) ) );
+                        if ~isempty(ind)
+                            distances(ki,j) = norm( X(ind,j) - centers(ind,ki) );
+                        end
+                    end
+                end
+            else
+                for ki = 1:k
+                    for j = 1:n
+                        ind     = find( X(:,j) );
                         distances(ki,j) = norm( X(ind,j) - centers(ind,ki) );
                     end
                 end
             end
-        else
-            for ki = 1:k
-                for j = 1:n
-                    ind     = find( X(:,j) );
-                    distances(ki,j) = norm( X(ind,j) - centers(ind,ki) );
-                end
-            end
         end
     end
-    
 else
     % Dense case. Optimized (May 2016)
-    if tryBuiltinMex && ~any(~matlabMexFileExists)
-        if isempty(matlabMexFileExists)
-            matlabMexFileExists = moveMatlabMex();
+    if tryBuiltinMex && ~any(~matlabmexFileExists)
+        if isempty(matlabmexFileExists)
+            matlabmexFileExists = moveMatlabMex();
         end
     end
-    if tryBuiltinMex && ~any(~matlabMexFileExists)
+    if tryBuiltinMex && ~any(~matlabmexFileExists)
         [distances,assignments] = pdist2mex( centers, X, 'euc', [], 1, [] );
         skip_min    = true;
     else

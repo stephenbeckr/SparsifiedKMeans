@@ -11,12 +11,26 @@ function setup_kmeans
 baseDirectory = fileparts(mfilename('fullpath'));
 addpath(genpath_ignoreHiddenDir(baseDirectory));
 
-%% Compile the KMeans sparse-matrix-assignmenet code
+%% Compile the KMeans sparse-matrix-assignment code
 if exist('SparseMatrixMinusCluster','file')~=3
     here = pwd;
     cd( fullfile(baseDirectory,'private') );
     disp('Compiling SparseMatrixMinusCluster code');
     mex -largeArrayDims SparseMatrixMinusCluster.c
+    cd(here);
+end
+if exist('SparseMatrixInnerProduct','file')~=3
+    here = pwd;
+    cd( fullfile(baseDirectory,'private') );
+    disp('Compiling SparseMatrixInnerProduct code');
+    mex -largeArrayDims -O SparseMatrixInnerProduct.c
+    cd(here);
+end
+if exist('SparseMatrixColumnNormSq','file')~=3
+    here = pwd;
+    cd( fullfile(baseDirectory,'private') );
+    disp('Compiling SparseMatrixColumnNormSq code');
+    mex -largeArrayDims -O SparseMatrixColumnNormSq.c
     cd(here);
 end
 

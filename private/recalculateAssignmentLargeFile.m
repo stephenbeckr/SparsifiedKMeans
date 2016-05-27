@@ -1,7 +1,10 @@
-function [assignments,distances] = recalculateAssignmentLargeFile( fileName, centers, varargin )
+function [assignments,distances, centers] = recalculateAssignmentLargeFile( fileName, centers, varargin )
 % [assignments,distances] = recalculateAssignmentLargeFile( fileName, centers )
 %   uses the matrix (say, "X") from fileName (a .mat file)
 %   and computes assignments from X with respect to the centers
+% [assignments,distances, centers] = recalculateAssignmentLargeFile( ...) 
+%   also estimates the centers in the single pass of data
+%   (make sure to pass in 'Assignments' parameters
 %
 %   The point of this file is to never load ALL of the mat file
 %       into memory, e.g., the case that the .mat file is 100 GB
@@ -18,19 +21,28 @@ function [assignments,distances] = recalculateAssignmentLargeFile( fileName, cen
 %   'ColumnSamples' [false]   If false, then each sample/entry is a row,
 %                               and if true, then each sample/entry
 %                               is a column (e.g., X is p x n)
+%   'Assignments'         Current assignmetns/index, if new centers
+%                               are also requested
 %
 % Stephen Becker
 % Stephen.Becker@Colorado.edu, 9/11/2015
+% Modified to have center estimate output, 5/26/2016
 
 prs     = inputParser;
 addParameter(prs,'ColumnSamples', false );
 addParameter(prs,'MB_limit',500 );
 addParameter(prs,'Verbose',false );
+addParameter(prs,'Assignments',[]);
 parse( prs, varargin{:} );
 
 ColumnSamples = prs.Results.ColumnSamples;
 MB_limit      = prs.Results.MB_limit;
 Verbose       = prs.Results.Verbose;
+oldAssignments   = prs.Results.Assignments;
+if isempty(oldAssignments) && nargout >= 3
+    error('For three outputs (i.e. including centers), must supply ''Assignments'' Parameter/Value pair');
+end
+DO_CENTERS  = (nargout >= 3 );
 
 % -- Find the file:
 matObj  = matfile( fileName, 'Writable', false );
@@ -58,6 +70,11 @@ end
 
 assignments = [];
 distances   = [];
+if DO_CENTERS
+    K       = max( oldAssignments(:) );
+    centers = zeros(p,K);
+    counter = zeros(1,K);
+end
 
 for j = 1:nBlocks
     ind = (1+(j-1)*nn):min(n,j*nn);
@@ -70,4 +87,17 @@ for j = 1:nBlocks
     [a_j,d_j]     = findClusterAssignments(X_ind,centers);
     assignments = [assignments,a_j];
     distances   = [distances,  d_j];
+    if DO_CENTERS
+        for ki = 1:K
+            ind_ki  = find( oldAssignments == ki );
+            counter(ki) = counter(ki) + length( ind_ki );
+            if ~isempty(ind_ki)
+                centers(:,ki)   = sum( full(X_ind(:, ind_ki ) ), 2 );
+            end
+        end
+    end
+end
+if DO_CENTERS
+    % we had a sum, now divide by # entries to get mean
+    centers = bsxfun( @times, centers, 1./counter );
 end

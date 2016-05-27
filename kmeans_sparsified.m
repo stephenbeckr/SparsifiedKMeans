@@ -1,5 +1,7 @@
-function [bestAssignments, bestCenters, SUMD, bestDistances, centers_twoPass] = kmeans_sparsified(X, K, varargin)
-% [IDX, C, SUMD, D, C_twoPass] = kmeans_sparsified(X, K)
+function [bestAssignments, bestCenters, SUMD, bestDistances, centers_twoPass, assignments_twoPass, distances_twoPass, SUMD_twoPass] = kmeans_sparsified(X, K, varargin)
+% [IDX, C, SUMD, D] = kmeans_sparsified(X, K)
+%   and the following returns two-pass variants:
+% [IDX, C, SUMD, D, C_twoPass, IDX_twoPass, D_twoPass, SUMD_twoPass] = ...
 %
 % Note: to maintain compatability with Matlab, we assume the points
 %   are ROWS of X, so X is a n x p matrix
@@ -17,10 +19,12 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, centers_twoPass] = 
 %   of that cluster to its cluster members. sum(SUMD) is the global
 %   objective. Note: this is calculated using D, not D_twoPass.
 % D returns the distance from each point to every centroid
+%
 % C_twoPass -- if this output is requested, then this returns
 %   an improved version of C that uses a second pass through the
 %   entire dataset. For extremely large datasets, this will be slow.
 %   If 'Sparsify' is set to false, then C_twoPass is the same as C.
+% IDX_twoPass, D_twoPass, SUMD_twoPass  -- analogous to C_twoPass
 %
 % Examples:
 %   [IDX,C] = kmeans_sparsified( X, 5 )
@@ -114,6 +118,10 @@ addParameter(p,'MB_limit',500 ); % only used if reading from disk
 addParameter(p,'DataFileVerbose',false);
 addParameter(p,'SparsityIgnoreUpsampling',false); % added 10/7/15
 addParameter(p,'FORCE_BUG',false); % added 11/21/15
+addParameter(p,'tryBuiltinMex',true); % added 5/25/16, technical. Keep this "true" (faster code in non-sparsified case)
+addParameter(p,'unbiasedDistance',false); % added 5/25/16. Should be true, but default 'false' for older code
+addParameter(p,'unbiasedInitialization',false); % added 5/27/16
+addParameter(p,'denseCenters',true); % added 5/27/16
 parse(p,varargin{:});
 
 Replicates  = p.Results.Replicates;
@@ -132,6 +140,10 @@ MB_limit    = p.Results.MB_limit;
 MLcorrection= p.Results.MLcorrection && Sparsify;
 FORCE_BUG   = p.Results.FORCE_BUG; % do NOT turn on unless you are testing
 SparsityIgnoreUpsampling = p.Results.SparsityIgnoreUpsampling;
+tryBuiltinMex   = p.Results.tryBuiltinMex;
+unbiasedDistance= p.Results.unbiasedDistance;
+unbiasedInitialization = p.Results.unbiasedInitialization;
+denseCenters    = p.Results.denseCenters;
 DataFileVerbose = p.Results.DataFileVerbose;
 
 % Do we load X from disk?
@@ -211,6 +223,8 @@ if Sparsify
         end
         DD  = spdiags( d, 0, p2, p2 );
         DiagRademacher   = @(x) DD*x;
+        % 5/26/2016, make X non-sparse, just as in no sketch case
+        X   = X + 2*eps; % eps is machine epsilon
     end
     
     mix   = @(X) H(DiagRademacher(upsample(X))); % Preconditioning
@@ -225,6 +239,9 @@ if Sparsify
         if nargout > 4
             XFull = X; % save this for testing
         end
+        if ~isreal(X)
+            error('Code and distance computations require real data');
+        end
         X   = mix(X);
         
 %         % small_p     = round( SparsityLevel*p );
@@ -232,8 +249,12 @@ if Sparsify
         
         if SparsityIgnoreUpsampling
             small_p     = round( SparsityLevel*p );
+            SparsityLevel = small_p/p; % 5/25/16. Due to rounding, we should do the update.
         else
             small_p     = round( SparsityLevel*p2 );
+            % Question: redefine "SparsityLevel" to small_p/p2 in this
+            % case? Not sure. At least redefine to small_p/p
+            SparsityLevel = small_p/p; % 5/25/16. 
         end
         
         Y           = spalloc(p,n,small_p*n);
@@ -268,6 +289,12 @@ if ischar(start)
     end
 end
 
+if Sparsify && unbiasedDistance
+    findClusters = @(X,centers) findClusterAssignments(X,centers,tryBuiltinMex,SparsityLevel);
+else
+    findClusters = @(X,centers) findClusterAssignments(X,centers,tryBuiltinMex);
+end
+
 bestObjective = Inf;
 for nTrials = 1:Replicates
     
@@ -279,7 +306,15 @@ for nTrials = 1:Replicates
             case 'uniform'
                 centers     = (mx-mn)*rand(p2,K) - mn;
             case {'arthur','++','kmeans++','k-means++','k-means-++'}
-                centers     = full(Arthur_initialization(X,K));
+                if Sparsify && unbiasedInitialization
+                    centers     = Arthur_initialization(X,K,SparsityLevel);
+                else
+                    centers     = Arthur_initialization(X,K);
+                end
+                if denseCenters
+                    centers = full(centers);
+                end
+%                 centers     = Arthur_initialization(X,K); % 5/25/2016. No, cannot do this, cluster loses members...
             otherwise
                 error('cannot handle other types of "Start" values');
         end
@@ -298,7 +333,12 @@ for nTrials = 1:Replicates
     for its = 1:MaxIter
         
         % Find assignments
-        [assignments,distances]     = findClusterAssignments(X,centers);
+        [assignments,distances]     = findClusters(X,centers);
+        if ~isreal(distances)
+            error('Distance estimates are complex, something went wrong');
+        elseif any(distances<0)
+            error('Found negative distance estimates, something went wrong');
+        end
         
         % Update cluster centers
         centersOld  = centers;
@@ -326,13 +366,21 @@ for nTrials = 1:Replicates
                     centers(:,ki)   = mean( full(X(:, ind ) ), 2 );
                 end
             end
-            
         end
         if ~isempty( dropCenters )
             centers = centers(:, setdiff(1:K,dropCenters) );
             centersOld = centersOld(:, setdiff(1:K,dropCenters) );
             assignments = []; % could recompute if we wanted to
             K       = size( centers, 2 );
+        end
+        if issparse(centers) && nnz(centers)/numel(centers) > .99
+            centers     = full(centers);
+            % Otherwise, code will be unnecessarily slow
+            %fprintf('At round %d, converting centers to full\n', its );
+        end
+        
+        if ~isreal(centers)
+            error('Found complex numbers in centers, something went wrong');
         end
         
         dff     = norm( centersOld - centers,'fro');
@@ -379,34 +427,62 @@ for ki = 1:K
 end
 
 if Sparsify
-    bestCenters   = unmix( bestCenters ); % undo DCT or Hadamard if necessary
+    bestCenters   = unmix( full(bestCenters) ); % undo DCT or Hadamard if necessary
     
     if nargout > 4
         if LoadFromDisk
             % FIXME
-            warning('Requires a second pass over the dataset');
-            [assignments_twoPass,D_twoPass]     = ...
+            % This does it all in one pass
+            warning('kmeans_sketched:twoPassesRequired','Requires a second pass over the dataset');
+            [assignments_twoPass,distances_twoPass, centers_twoPass]     = ...
                 recalculateAssignmentLargeFile(DataFile, bestCenters, ...
+                'Assignments', bestAssignments, ... % new, May 2016
                 'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
                 'Verbose',DataFileVerbose);
         else
+            % Data can fit in RAM, so we do the same calculation as the
+            %   one-pass version in "LoadFromDisk" but for simplicity
+            %   we do it in two passes, since there is no penalty
             centers_twoPass = zeros(p,K);
+            % Pass 1:
             for ki = 1:K
                 ind  = find( bestAssignments == ki );
                 if ~isempty(ind)
                     centers_twoPass(:,ki)   = mean( full(XFull(:, ind ) ), 2 );
                 end
             end
-
+            if nargout > 5
+                % Pass 2
+                % Note: for better accuracy, we could use "centers_twoPass"
+                %   instead of "centers", but this is no longer equivalent
+                %   to the true one-pass version in "LoadFromDisk"
+                [assignments_twoPass, distances_twoPass] = findClusters( full(XFull), bestCenters );
+            end
+            
+        end
+        if nargout >= 8
+            SUMD_twoPass    = zeros(K,1);
+            for ki = 1:K
+                ind_i    =  assignments_twoPass == ki ;
+                SUMD_twoPass(ki) = sum(distances(:,ind_i).^2); % note that we do NOT take sqrt
+            end
         end
     end
 else
     % If we do not sparsify, then there is no distinction in # of passes...
+    warning('kmeans_sketched:twoPassNoDifferent',...
+        'There is no sparsification, so the twoPass variables are the same');
     if nargout > 4
-        centers_twoPass = bestCenters;
+      centers_twoPass = bestCenters;
+      if nargout > 5
+        assignments_twoPass = bestAssignments;
+        distances_twoPass   = bestDistances;
+        SUMD_twoPass        = SUMD;
+      end
     end
 end
 
+% And tranpose everything if requested
 if ~ColumnSamples
     % Be compatible with Matlab's "kmeans" function
     bestCenters   = bestCenters';
@@ -414,6 +490,15 @@ if ~ColumnSamples
     bestAssignments = bestAssignments';
     SUMD          = SUMD';
     if nargout > 4
-        centers_twoPass = centers_twoPass';
+       % outputs 5-8 are
+       %   centers_twoPass, assignment_twoPass, distances_twoPass, SUMD_twoPass
+       centers_twoPass = centers_twoPass';
+       if nargout > 5
+         assignments_twoPass = assignments_twoPass';
+         distances_twoPass   = distances_twoPass';
+         if nargout > 7
+          SUMD_twoPass        = SUMD_twoPass';
+         end
+       end
     end
 end
