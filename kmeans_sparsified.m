@@ -119,9 +119,9 @@ addParameter(p,'DataFileVerbose',false);
 addParameter(p,'SparsityIgnoreUpsampling',false); % added 10/7/15
 addParameter(p,'FORCE_BUG',false); % added 11/21/15
 addParameter(p,'tryBuiltinMex',true); % added 5/25/16, technical. Keep this "true" (faster code in non-sparsified case)
-addParameter(p,'unbiasedDistance',false); % added 5/25/16. Should be true, but default 'false' for older code
+addParameter(p,'unbiasedDistance',true); % added 5/25/16. Should be true, but default 'false' for older code
 addParameter(p,'unbiasedInitialization',false); % added 5/27/16
-addParameter(p,'denseCenters',true); % added 5/27/16
+addParameter(p,'denseCenters',false); % added 5/27/16
 parse(p,varargin{:});
 
 Replicates  = p.Results.Replicates;
