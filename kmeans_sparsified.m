@@ -185,7 +185,7 @@ end
 
 % Do we load X from disk?
 LoadFromDisk    = ~isempty(DataFile);
-if 2~=exist(DataFile,'file')
+if LoadFromDisk && 2~=exist(DataFile,'file')
     DataFile = [DataFile,'.mat'];
     if 2~=exist(DataFile,'file')
         error('Cannot find specified data file to load');
@@ -502,6 +502,8 @@ for ki = 1:K
     ind_i    =  bestAssignments == ki ;
     SUMD(ki) = sum(distances(:,ind_i).^2); % note that we do NOT take sqrt
 end
+
+OUTPUT.TimeOverall_OnePass = toc(t0);
 
 if Sparsify
     bestCenters   = unmix( full(bestCenters) ); % undo DCT or Hadamard if necessary
