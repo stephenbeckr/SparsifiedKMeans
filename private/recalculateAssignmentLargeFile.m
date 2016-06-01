@@ -1,4 +1,4 @@
-function [assignments,distances, centers] = recalculateAssignmentLargeFile( fileName, centers, varargin )
+function [assignments,distances, newCenters] = recalculateAssignmentLargeFile( fileName, centers, varargin )
 % [assignments,distances] = recalculateAssignmentLargeFile( fileName, centers )
 %   uses the matrix (say, "X") from fileName (a .mat file)
 %   and computes assignments from X with respect to the centers
@@ -72,7 +72,7 @@ assignments = [];
 distances   = [];
 if DO_CENTERS
     K       = max( oldAssignments(:) );
-    centers = zeros(p,K);
+    newCenters = zeros(p,K);
     counter = zeros(1,K);
 end
 
@@ -89,15 +89,15 @@ for j = 1:nBlocks
     distances   = [distances,  d_j];
     if DO_CENTERS
         for ki = 1:K
-            ind_ki  = find( oldAssignments == ki );
+            ind_ki  = find( oldAssignments(ind) == ki );
             counter(ki) = counter(ki) + length( ind_ki );
             if ~isempty(ind_ki)
-                centers(:,ki)   = sum( full(X_ind(:, ind_ki ) ), 2 );
+                newCenters(:,ki)   = sum( full(X_ind(:, ind_ki ) ), 2 );
             end
         end
     end
 end
 if DO_CENTERS
     % we had a sum, now divide by # entries to get mean
-    centers = bsxfun( @times, centers, 1./counter );
+    newCenters = bsxfun( @times, centers, 1./counter );
 end
