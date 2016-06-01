@@ -11,6 +11,8 @@ There are three benefits:
 # Installation
 Every time you start a new Matlab session, run `setup_kmeans` and it will correctly set the paths. The first time you run it, it may also compile some mex files; for this, you need a valid `C` compiler (see http://www.mathworks.com/support/compilers/R2015a/index.html).
 
+# Version
+Current version is 2.1
 
 # Example
 ![Example on synthetic data](example.png?raw=true "Example on synthetic data")

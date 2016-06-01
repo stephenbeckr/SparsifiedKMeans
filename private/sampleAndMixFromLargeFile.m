@@ -29,6 +29,14 @@ function [Y,n] = sampleAndMixFromLargeFile( fileName, SparsityLevel, P, p2, vara
 %                               is a column (e.g., X is p x n)
 %                             NOTE: regardless of this value,
 %                               the output Y is p x n
+%   'AddEps'    [true]    Adds a tiny change to the data to make zeros
+%                           into nonzeros so as not to trigger sparse
+%                           code (which interprets zeros as missing data,
+%                           not just as zero value).
+%                         Setting this to false can ruin the sampling,
+%                           but if your data are sparse, setting this to
+%                           true will make code run slowly. If data are
+%                           sparse, you should not be sampling though!
 %
 % Stephen Becker
 % Stephen.Becker@Colorado.edu, 9/2/2015
@@ -37,11 +45,13 @@ prs     = inputParser;
 addParameter(prs,'ColumnSamples', false );
 addParameter(prs,'MB_limit',500 );
 addParameter(prs,'Verbose',false );
+addParameter(prs,'AddEps',true); % 6/1/2016
 parse( prs, varargin{:} );
 
 ColumnSamples = prs.Results.ColumnSamples;
 MB_limit      = prs.Results.MB_limit;
 Verbose       = prs.Results.Verbose;
+AddEps        = prs.Results.AddEps;
 
 % -- Find the file:
 matObj  = matfile( fileName, 'Writable', false );
@@ -82,6 +92,9 @@ for j = 1:nBlocks
         X_ind   = matObj.(var)(:,ind);
     else
         X_ind   = (matObj.(var)(ind,:))';
+    end
+    if AddEps
+        X_ind   = X_ind*(1 + 2*eps); % eps is machine epsilon (6/1/2016)
     end
     X_ind   = P(X_ind); % apply preconditioning
     
