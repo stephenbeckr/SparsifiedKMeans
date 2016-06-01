@@ -60,8 +60,9 @@ for k = 1:(K-1)
         end
         counter     = counter + 1;
     end
-    if counter==2
+    if counter==2 && norm(dist)>0
         error('This should never happen; please debug');
+        % (if dist==0, then it is possible)
     end
     
     chosenInd = [chosenInd, i ];
