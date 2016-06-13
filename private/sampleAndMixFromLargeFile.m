@@ -1,16 +1,19 @@
-function [Y,n] = sampleAndMixFromLargeFile( fileName, SparsityLevel, P, p2, varargin )
-% Y = sampleAndMixFromLargeFile( fileName, SparsityLevel, P, p2 )
+function [Y,n,timeMix,timeSample] = sampleAndMixFromLargeFile( fileName, SparsityLevel, P, p, varargin )
+% Y = sampleAndMixFromLargeFile( fileName, SparsityLevel, P, p )
 %   uses the matrix (say, "X") from fileName (a .mat file)
 %   and computes SparseMask.*( P(X) )
 %   where
 %       P is a function handle that represents matrix-vector multiplication
 %       SparsityLevel controls what percentage of entries to keep
 %           and in turn, this creates the "SparseMask"
-%       p2  is the size of outputs from P(.)
+%       p  is the size of outputs from P(.)
 %
 %   The point of this file is to never load ALL of the mat file
 %       into memory, e.g., the case that the .mat file is 100 GB
 %       and you only have 500 MB of RAM
+%
+% [Y,timeLoad,timeMix,timeSample] = sampleAndMixFromLargeFile( fileName, SparsityLevel, ... )
+%       returns the time to load the data and the time to mix the data.
 %
 % [p,n] = sampleAndMixFromLargeFile( fileName, 0, [], [] )
 % [p,n] = sampleAndMixFromLargeFile( fileName, 0, [], [], 'ColumnSamples',true)
@@ -39,7 +42,7 @@ function [Y,n] = sampleAndMixFromLargeFile( fileName, SparsityLevel, P, p2, vara
 %                           sparse, you should not be sampling though!
 %
 % Stephen Becker
-% Stephen.Becker@Colorado.edu, 9/2/2015
+% Stephen.Becker@Colorado.edu, 9/2/2015; updated 6/13/2016
 
 prs     = inputParser;
 addParameter(prs,'ColumnSamples', false );
@@ -85,26 +88,39 @@ end
 
 
 Y           = [];
-small_p     = round( SparsityLevel*p2 );
+small_p     = round( SparsityLevel*p );
+ SparsityLevel  = small_p/p; % undo rounding. 6/13/2016
+timeLoad    = 0;
+timeMix     = 0;
+timeSample  = 0;
 for j = 1:nBlocks
     ind = (1+(j-1)*nn):min(n,j*nn);
+    t1 = tic;
     if ColumnSamples 
         X_ind   = matObj.(var)(:,ind);
     else
         X_ind   = (matObj.(var)(ind,:))';
     end
+    timeLoad    = timeLoad + toc(t1);
     if AddEps
         X_ind   = X_ind*(1 + 2*eps); % eps is machine epsilon (6/1/2016)
     end
+    t1      = tic;
     X_ind   = P(X_ind); % apply preconditioning
+    timeMix = timeMix + toc(t1);
     
-    nn  = length(ind);
-    Yj  = spalloc(p,nn,small_p*nn);
-    replace = false;
-    for jj = 1:nn
-        row_ind     = randsample(p2,small_p, replace );
-        Yj(row_ind,jj)    = X_ind(row_ind,jj)/SparsityLevel;
-    end
+    t1      = tic;
+    %nn  = length(ind);
+    %Yj  = spalloc(p,nn,small_p*nn);
+    %replace = false;
+    %for jj = 1:nn
+        %row_ind     = randsample(p,small_p, replace );
+        %Yj(row_ind,jj)    = X_ind(row_ind,jj)/SparsityLevel;
+    %end
+    % 6/13/2016, more efficient:
+    Yj = randsample_fixedNumberEntries( X_ind, small_p );
 
     Y   = [Y, Yj];
+    timeSample  = timeSample + toc(t1);
 end
+n = timeLoad;

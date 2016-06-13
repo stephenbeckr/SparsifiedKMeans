@@ -290,10 +290,13 @@ if Sparsify
     if LoadFromDisk
         XFull   = [];
         t1 = tic;
-        X = sampleAndMixFromLargeFile( DataFile, SparsityLevel, mix, p2,...
+        [X,timeLoad,timeMix,timeSample] = sampleAndMixFromLargeFile( DataFile, SparsityLevel, mix, p2,...
             'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
             'Verbose',DataFileVerbose);
         OUTPUT.TimeToReadAndSketchFile = toc(t1);
+        OUTPUT.TimeToSketch = timeMix;
+        OUTPUT.TimeToSample = timeSample;
+        OUTPUT.TimeToRead   = timeLoad;
     else
         if nargout > 5
             XFull = X; % save this for testing
@@ -319,13 +322,16 @@ if Sparsify
         end
         
         t1  = tic;
-        Y           = spalloc(p,n,small_p*n);
-        replace = false;
-        for j = 1:n
-            ind         = randsample(p2,small_p, replace );
-            Y(ind,j)    = X(ind,j)/SparsityLevel;
-        end
-        X   = Y;
+        % 6/13/2016, faster code:
+        X = randsample_fixedNumberEntries( X, small_p );
+        % Old code (if p~=p2, not sure what happened)
+%         Y           = spalloc(p,n,small_p*n);
+%         replace = false;
+%         for j = 1:n
+%             ind         = randsample(p2,small_p, replace );
+%             Y(ind,j)    = X(ind,j)/SparsityLevel;
+%         end
+%         X   = Y;
         OUTPUT.TimeToSample = toc(t1);
     end
     
