@@ -520,12 +520,13 @@ if Sparsify
             % This does it all in one pass
             warning('kmeans_sketched:twoPassesRequired','Requires a second pass over the dataset');
             t1 = tic;
-            [assignments_twoPass,distances_twoPass, centers_twoPass]     = ...
+            [assignments_twoPass,distances_twoPass, centers_twoPass,timeLoad]     = ...
                 recalculateAssignmentLargeFile(DataFile, bestCenters, ...
                 'Assignments', bestAssignments, ... % new, May 2016
                 'ColumnSamples',ColumnSamples,'MB_limit',MB_limit,...
                 'Verbose',DataFileVerbose);
-            OUTPUT.TimeSecondPass_FromFile = toc(t1);
+            OUTPUT.TimeSecondPass_Overall  = toc(t1);
+            OUTPUT.TimeSecondPass_JustRead = timeLoad;
         else
             % Data can fit in RAM, so we do the same calculation as the
             %   one-pass version in "LoadFromDisk" but for simplicity

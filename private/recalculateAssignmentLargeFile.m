@@ -1,10 +1,14 @@
-function [assignments,distances, newCenters] = recalculateAssignmentLargeFile( fileName, centers, varargin )
+function [assignments,distances, newCenters, timeLoad] = recalculateAssignmentLargeFile( fileName, centers, varargin )
 % [assignments,distances] = recalculateAssignmentLargeFile( fileName, centers )
 %   uses the matrix (say, "X") from fileName (a .mat file)
 %   and computes assignments from X with respect to the centers
 % [assignments,distances, centers] = recalculateAssignmentLargeFile( ...) 
 %   also estimates the centers in the single pass of data
 %   (make sure to pass in 'Assignments' parameters
+%
+% 
+% [assignments,distances, centers, timeLoad] = ...
+%   returns timing information
 %
 %   The point of this file is to never load ALL of the mat file
 %       into memory, e.g., the case that the .mat file is 100 GB
@@ -43,6 +47,7 @@ if isempty(oldAssignments) && nargout >= 3
     error('For three outputs (i.e. including centers), must supply ''Assignments'' Parameter/Value pair');
 end
 DO_CENTERS  = (nargout >= 3 );
+DO_ASSIGNMENT = ~isempty(centers);
 
 % -- Find the file:
 matObj  = matfile( fileName, 'Writable', false );
@@ -76,17 +81,22 @@ if DO_CENTERS
     counter = zeros(1,K);
 end
 
+timeLoad = 0;
 for j = 1:nBlocks
     ind = (1+(j-1)*nn):min(n,j*nn);
+    t1 = tic;
     if ColumnSamples 
         X_ind   = matObj.(var)(:,ind);
     else
         X_ind   = (matObj.(var)(ind,:))';
     end
+    timeLoad    = timeLoad + toc(t1);
     
-    [a_j,d_j]     = findClusterAssignments(X_ind,centers);
-    assignments = [assignments,a_j];
-    distances   = [distances,  d_j];
+    if DO_ASSIGNMENT
+        [a_j,d_j]     = findClusterAssignments(X_ind,centers);
+        assignments = [assignments,a_j];
+        distances   = [distances,  d_j];
+    end
     if DO_CENTERS
         for ki = 1:K
             ind_ki  = find( oldAssignments(ind) == ki );
@@ -99,5 +109,5 @@ for j = 1:nBlocks
 end
 if DO_CENTERS
     % we had a sum, now divide by # entries to get mean
-    newCenters = bsxfun( @times, centers, 1./counter );
+    newCenters = bsxfun( @times, newCenters, 1./counter );
 end
