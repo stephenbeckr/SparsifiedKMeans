@@ -237,7 +237,7 @@ if Sparsify
     end
     upsample    = @(x) x;
     downsample  = upsample;
-    if strcmpi( SketchType, 'Hadamard' )
+    if all(strcmpi( SketchType, 'Hadamard' ))
         p2  = 2^nextpow2(p);
         if p<p2
             upsample = @(x) [x;zeros(p2-p,size(x,2))];
@@ -253,18 +253,26 @@ if Sparsify
             OUTPUT.SlowHadamard = true;
         end
         Ht  = H;
-    elseif strcmpi( SketchType, 'DCT' )
+    elseif all(strcmpi( SketchType, 'DCT' ))
         H   = @(x) dct(x); % no upsampling
         Ht  = @(x) idct(x); % transpose
-    elseif strcmpi( SketchType, 'Nothing' ) || strcmpi( SketchType,'none' )
+    elseif all(strcmpi( SketchType, 'Nothing' )) || all(strcmpi( SketchType,'none' ))
         H   = @(x) x;
         Ht  = H;
+    elseif iscell( SketchType )
+        if isa( SketchType{1}, 'function_handle' ) && ...
+                isa( SketchType{2}, 'function_handle' )
+            H   = SketchType{1};
+            Ht  = SketchType{2};
+        else
+            error('If SketchType is a cell, then both entries should be function handles for forward and adjoint transform');
+        end
     else
         fprintf(2,'SketchType was %s\n', SketchType );
         error('bad type for "SketchType"');
     end
     
-    if strcmpi( SketchType, 'Nothing' ) || strcmpi( SketchType,'none' )
+    if all(strcmpi( SketchType, 'Nothing' )) || all(strcmpi( SketchType,'none' ))
         DiagRademacher   = @(x) x;
         % Note: if X has a lot of zero entries,
         %   then if we don't mix, after we sample, we'll have zero entries
