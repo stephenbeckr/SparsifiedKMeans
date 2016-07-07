@@ -52,7 +52,7 @@ for k = 1:(K-1)
         i   = randsample( n, 1, true);
     end
     counter     = 1;
-    while ismember( i, chosenInd ) && counter < 20
+    while ismember( i, chosenInd ) && counter < 50
         if norm(dist)>0
             i   = randsample( n, 1, true, dist.^2 );
         else

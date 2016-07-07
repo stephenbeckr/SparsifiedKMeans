@@ -46,9 +46,9 @@ void mexFunction( int nlhs, mxArray *plhs[],
      
 { 
     double *distance, *center, *x;
-    register double dist; // unlikely to have much effect
-    double *distArray; // for K>1 case, helper variables
-    double distHelper[3]; // for 1<K<=3 case, keep it on the stack
+    register double dist; /* unlikely to have much effect */
+    double *distArray; /* for K>1 case, helper variables */
+    double distHelper[3]; /* for 1<K<=3 case, keep it on the stack*/
     double beta =0.;
     int    use_beta = 0;
     mwIndex *ir, *jc;
@@ -172,15 +172,15 @@ void mexFunction( int nlhs, mxArray *plhs[],
                         distArray[k] = 0.;
                     for ( j=jc[i]; j<jc[i+1]; j++ ){
                         for (k=0; k<K; k++ )
-                            //distance[i*K+k] += ( x[j] - center[ k*p + ir[j] ] )*( x[j] - center[ k*p + ir[j] ] ); 
+                            /*distance[i*K+k] += ( x[j] - center[ k*p + ir[j] ] )*( x[j] - center[ k*p + ir[j] ] ); */
                             distArray[k] += ( x[j] - center[ k*p + ir[j] ] )*( x[j] - center[ k*p + ir[j] ] ); 
                     }
                     for (k=0; k<K; k++ )
-                        //distance[i*K+k] = sqrt(distance[i*K+k]);
+                        /*distance[i*K+k] = sqrt(distance[i*K+k]);*/
                         distance[i*K+k] = sqrt(distArray[k]);
                 }
                 break;
-        } // end of switch
+        } /* end of switch */
     }
     if (K>3)
         mxFree( distArray );
