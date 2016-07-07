@@ -394,9 +394,6 @@ for nTrials = 1:Replicates
                 else
                     centers     = Arthur_initialization(X,K);
                 end
-                if denseCenters
-                    centers = full(centers);
-                end
 %                 centers     = Arthur_initialization(X,K); % 5/25/2016. No, cannot do this, cluster loses members...
             otherwise
                 error('cannot handle other types of "Start" values');
@@ -411,6 +408,9 @@ for nTrials = 1:Replicates
             warning('kmeans_sparsified:deterministicCenters',...
                 'initialization is specified, so running more than 1 replicate is not helpful');
         end
+    end
+    if denseCenters
+        centers = full(centers);
     end
     OUTPUT.replicateTimesJustInitialization(nTrials) = toc(t1);
     

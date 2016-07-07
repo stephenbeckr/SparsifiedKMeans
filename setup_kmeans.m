@@ -16,7 +16,7 @@ if exist('SparseMatrixMinusCluster','file')~=3
     here = pwd;
     cd( fullfile(baseDirectory,'private') );
     disp('Compiling SparseMatrixMinusCluster code');
-    mex -largeArrayDims SparseMatrixMinusCluster.c
+    mex -largeArrayDims -O SparseMatrixMinusCluster.c
     cd(here);
 end
 if exist('SparseMatrixInnerProduct','file')~=3
