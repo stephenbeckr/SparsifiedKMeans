@@ -102,7 +102,7 @@ function [bestAssignments, bestCenters, SUMD, bestDistances, OUTPUT, centers_two
 %                              (if sampling is true), which changes how
 %                              distances are estimated. Prior to v2, this
 %                              was true by default.
-%  'unbiasedInitialization' If true (default is false), uses the sparse-
+%  'unbiasedInitialization' If true (default), uses the sparse-
 %                              sparse estimation code. Does not have a
 %                              major impact.
 %
@@ -151,7 +151,7 @@ addParameter(p,'SparsityIgnoreUpsampling',false); % added 10/7/15
 addParameter(p,'FORCE_BUG',false); % added 11/21/15
 addParameter(p,'tryBuiltinMex',true); % added 5/25/16, technical. Keep this "true" (faster code in non-sparsified case)
 addParameter(p,'unbiasedDistance',true); % added 5/25/16. Should be true, but default 'false' for older code
-addParameter(p,'unbiasedInitialization',false); % added 5/27/16
+addParameter(p,'unbiasedInitialization',true); % added 5/27/16, change default to true on 7/8/16
 addParameter(p,'denseCenters',false); % added 5/27/16
 parse(p,varargin{:});
 
@@ -385,7 +385,7 @@ for nTrials = 1:Replicates
         switch lower(start)
             case 'sample'
                 ind         = randsample(n,K);
-                centers     = full(X(:,ind));
+                centers     = X(:,ind);
             case 'uniform'
                 centers     = (mx-mn)*rand(p2,K) - mn;
             case {'arthur','++','kmeans++','k-means++','k-means-++'}
