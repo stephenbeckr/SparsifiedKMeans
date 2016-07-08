@@ -180,7 +180,7 @@ if 3==exist(mxFile,'file')
     [success,message,messageID] = copyfile(mxFile, tempdir );
     if success==1 || strcmpi(messageID,'MATLAB:COPYFILE:ReadOnly')
         addpath(tempdir)
-        fprintf('Added mex file to your temporary \n directory %s or it already exists(can delete later)\n', tempdir );
+        fprintf('Added mex file to your temporary \n directory %s or it already exists (can delete later)\n', tempdir );
         flag = 1;
     end
 else

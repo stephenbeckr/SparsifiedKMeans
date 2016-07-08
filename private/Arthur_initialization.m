@@ -52,7 +52,7 @@ for k = 1:(K-1)
         i   = randsample( n, 1, true);
     end
     counter     = 1;
-    while ismember( i, chosenInd ) && counter < 50
+    while ismember( i, chosenInd ) && counter < 400
         if norm(dist)>0
             i   = randsample( n, 1, true, dist.^2 );
         else
@@ -60,9 +60,8 @@ for k = 1:(K-1)
         end
         counter     = counter + 1;
     end
-    if counter==2 && norm(dist)>0
-        error('This should never happen; please debug');
-        % (if dist==0, then it is possible)
+    if ismember( i, chosenInd )
+        error('Cannot sample with replacement with this distribution');
     end
     
     chosenInd = [chosenInd, i ];
