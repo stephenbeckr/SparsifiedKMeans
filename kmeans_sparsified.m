@@ -570,11 +570,11 @@ if Sparsify
         end
     end
 else
-    % If we do not sparsify, then there is no distinction in # of passes...
-    warning('kmeans_sketched:twoPassNoDifferent',...
-        'There is no sparsification, so the twoPass variables are the same');
     if nargout > 5
-      centers_twoPass = bestCenters;
+        % If we do not sparsify, then there is no distinction in # of passes...
+        warning('kmeans_sketched:twoPassNoDifferent',...
+            'There is no sparsification, so the twoPass variables are the same');
+        centers_twoPass = bestCenters;
       if nargout > 6
         assignments_twoPass = bestAssignments;
         distances_twoPass   = bestDistances;
