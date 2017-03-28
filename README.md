@@ -20,3 +20,6 @@ Current version is 2.1
 # Authors
 * [Stephen Becker](http://amath.colorado.edu/faculty/becker/), University of Colorado Boulder (Applied Mathematics)
 * [Farhad Pourkamali Anaraki](http://www.pourkamali.com/), University of Colorado Boulder (Electrical Engineering)
+
+# Reference
+[Preconditioned Data Sparsification for Big Data with Applications to PCA and K-means](https://doi.org/10.1109/TIT.2017.2672725), F. Pourkamali Anaraki and S. Becker, IEEE Trans. Info. Theory, 2017.  See also the [arXiv version](https://arxiv.org/abs/1511.00152)
