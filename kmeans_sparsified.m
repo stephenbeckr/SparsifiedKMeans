@@ -320,10 +320,10 @@ if Sparsify
 %         small_p     = round( SparsityLevel*p2 );
         
         if SparsityIgnoreUpsampling
-            small_p     = round( SparsityLevel*p );
+            small_p     = max(1,round( SparsityLevel*p2 ));
             SparsityLevel = small_p/p; % 5/25/16. Due to rounding, we should do the update.
         else
-            small_p     = round( SparsityLevel*p2 );
+            small_p     = max(1,round( SparsityLevel*p2 ));
             % Question: redefine "SparsityLevel" to small_p/p2 in this
             % case? Not sure. At least redefine to small_p/p
             SparsityLevel = small_p/p; % 5/25/16. 
