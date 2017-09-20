@@ -23,3 +23,6 @@ Current version is 2.1
 
 # Reference
 [Preconditioned Data Sparsification for Big Data with Applications to PCA and K-means](https://doi.org/10.1109/TIT.2017.2672725), F. Pourkamali Anaraki and S. Becker, IEEE Trans. Info. Theory, 2017.  See also the [arXiv version](https://arxiv.org/abs/1511.00152)
+
+# Related projects
+* [sparsekmeans](https://github.com/EricKightley/sparsekmeans) by Eric Kightley is our joint project to implement the algorithm in python, and support out-of-memory operations.
