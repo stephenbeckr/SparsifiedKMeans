@@ -79,11 +79,14 @@ end
 MB      = 1024^2;
 % 8 bytes per double entry
 % We have p rows, so allow nn columns, where nn*p*8 = MB_limit*MB
-nn      = floor( MB_limit*MB/( p*8 ) );
+nn      = min(1,floor( MB_limit*MB/( p*8 ) ));
 nBlocks = ceil( n/nn );
 if Verbose
     fprintf('Splitting %d x %d matrix into %d %d x %d chunks\n', ...
         p,n,nBlocks, p,nn);
+    if nn == 1 && nBlocks > 500
+        fprintf('Warning: there are a lot of blocks, this may be slow. Is MB_limit set correctly?');
+    end
 end
 
 
