@@ -35,4 +35,4 @@ Some images taken from the paper or slides from presentations; see the journal p
 ![Example on synthetic data](figs/example.png?raw=true "Example on synthetic data")
 
 ## Main idea
-![Main idea](figs/slides_mainIdea?raw=true "Explaining our concept")
+![Main idea](figs/slides_mainIdea.jpg?raw=true "Explaining our concept")
