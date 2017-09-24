@@ -15,7 +15,7 @@ Every time you start a new Matlab session, run `setup_kmeans` and it will correc
 Current version is 2.1
 
 # Example
-![Example on synthetic data](example.png?raw=true "Example on synthetic data")
+![Example on synthetic data](figs/example.png?raw=true "Example on synthetic data")
 
 # Authors
 * [Stephen Becker](http://amath.colorado.edu/faculty/becker/), University of Colorado Boulder (Applied Mathematics)
