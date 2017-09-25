@@ -36,3 +36,15 @@ Some images taken from the paper or slides from presentations; see the journal p
 
 ## Main idea
 ![Main idea](figs/slides_mainIdea.jpg?raw=true "Explaining our concept")
+## MNIST experiment
+![MNIST experiment](figs/slides_experiment1.jpg?raw=true "Experiment 1")
+![MNIST accuracy](figs/slides_experiment2.jpg?raw=true "Experiment 2")
+
+## Infinite MNIST big data experiment
+![MNIST2 accuracy](figs/slides_experiment3.jpg?raw=true "Experiment 3")
+
+## Two-pass mode for increased accuracy
+![Two pass](figs/slides_experiment4.jpg?raw=true "Experiment 4")
+
+## Theory
+![Theory](figs/slides_theory.jpg?raw=true "Theorems")
