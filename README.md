@@ -27,6 +27,7 @@ Current version is 2.1
 
 # Related projects
 * [sparsekmeans](https://github.com/EricKightley/sparsekmeans) by Eric Kightley is our joint project to implement the algorithm in python, and support out-of-memory operations.
+The [sparseklearn](https://github.com/EricKightley/sparseklearn) is the generalization of this idea to other types of machine learning algorithms (also python).
 
 # Further information
 Some images taken from the paper or slides from presentations; see the journal paper for full explanations
