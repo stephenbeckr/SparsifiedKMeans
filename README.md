@@ -1,10 +1,10 @@
 # SparsifiedKMeans
-KMeans for big data using preconditioning and sparsification, Matlab implementation
+KMeans for big data using preconditioning and sparsification, Matlab implementation. Uses the [KMeans clustering algorithm](https://en.wikipedia.org/wiki/K-means_clustering) (also known as [Lloyd's ALgorithm](https://en.wikipedia.org/wiki/Lloyd%27s_algorithm) or "K Means" or "K-Means") but sparsifies the data in a special manner to achieve significant (and tunable) savings in computation time and memory.
 
 The code provides `kmeans_sparsified` which is used much like the `kmeans` function from the Statistics toolbox in Matlab.
 There are three benefits:
 
-1. The basic implementation is much faster than the Statistics toolbox version. We also have a few modern options that the toolbox version lacks; e.g., we implement [K-means++](https://en.wikipedia.org/wiki/K-means%2B%2B) for initialization.
+1. The basic implementation is much faster than the Statistics toolbox version. We also have a few modern options that the toolbox version lacks; e.g., we implement [K-means++](https://en.wikipedia.org/wiki/K-means%2B%2B) for initialization. (Update: Since 2015, Matlab has improved the speed of their routine and initialization, and now their version and ours are comparable).
 2. We have a new variant, called sparsified KMeans, that preconditions and then samples the data, and this version can be thousands of times faster, and is designed for big data sets that are unmangeable otherwise
 3. The code also allows a big-data option. Instead of passing in a matrix of data, you give it the location of a .mat file, and the code will break the data into chunks. This is useful when the data is, say, 10 TB and your computer only has 6 GB of RAM. The data is loaded in smaller chunks (e.g., less than 6 GB), which is then preconditioned and sampled and discarded from RAM, and then the next data chunk is processed. The entire algorithm is one-pass over the dataset.
 
@@ -19,8 +19,8 @@ Current version is 2.1
 
 
 # Authors
-* [Stephen Becker](http://amath.colorado.edu/faculty/becker/), University of Colorado Boulder (Applied Mathematics)
-* [Farhad Pourkamali Anaraki](http://www.pourkamali.com/), University of Colorado Boulder (Electrical Engineering)
+* [Prof. Stephen Becker](http://amath.colorado.edu/faculty/becker/), University of Colorado Boulder (Applied Mathematics)
+* [Dr. Farhad Pourkamali Anaraki](http://www.pourkamali.com/), University of Colorado Boulder (Applied Mathematics)
 
 # Reference
 [Preconditioned Data Sparsification for Big Data with Applications to PCA and K-means](https://doi.org/10.1109/TIT.2017.2672725), F. Pourkamali Anaraki and S. Becker, IEEE Trans. Info. Theory, 2017.  See also the [arXiv version](https://arxiv.org/abs/1511.00152)
