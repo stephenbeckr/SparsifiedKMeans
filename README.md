@@ -1,5 +1,5 @@
 # SparsifiedKMeans
-KMeans for big data using preconditioning and sparsification, Matlab implementation. Uses the [KMeans clustering algorithm](https://en.wikipedia.org/wiki/K-means_clustering) (also known as [Lloyd's ALgorithm](https://en.wikipedia.org/wiki/Lloyd%27s_algorithm) or "K Means" or "K-Means") but sparsifies the data in a special manner to achieve significant (and tunable) savings in computation time and memory.
+KMeans for big data using preconditioning and sparsification, Matlab implementation. Uses the [KMeans clustering algorithm](https://en.wikipedia.org/wiki/K-means_clustering) (also known as [Lloyd's Algorithm](https://en.wikipedia.org/wiki/Lloyd%27s_algorithm) or "K Means" or "K-Means") but sparsifies the data in a special manner to achieve significant (and tunable) savings in computation time and memory.
 
 The code provides `kmeans_sparsified` which is used much like the `kmeans` function from the Statistics toolbox in Matlab.
 There are three benefits:
