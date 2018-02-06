@@ -40,7 +40,12 @@ if exist('hadamard','file')~=3
     here = pwd;
     cd( fullfile(baseDirectory,'private') );
     disp('Compiling fast Hadamard code');
-    threads=maxNumCompThreads(); % good value of NTHREADS
+    % Not all versions of Matlab support "maxNumCompThreads" (Octave doesn't either):
+    if 2 == exist('maxNumCompThreads','file')
+        threads=maxNumCompThreads(); % good value of NTHREADS
+    else
+        threads = 1; % you can change this by hand if you like
+    end
     threaddFlg = sprintf('-DNTHREADS=%d',threads);
     if isunix
         % Assuming we are using gcc, so I know some fancier flags
