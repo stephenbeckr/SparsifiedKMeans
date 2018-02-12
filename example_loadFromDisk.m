@@ -58,14 +58,14 @@ fprintf('our sparse version:\tobjective %.3e, time %.2e\n', obj_fastest, time_fa
 
 %% New feature: loading from disk
 disp('--- Sparsified k-means, on out-of-core data ---');
-MB_limit    = 5; % size, in MB, of how much RAM we have to work with
+MB_limit    = 1; % size, in MB, of how much RAM we have to work with
                  % Try 500 or 1000 (e.g., 1 GB). Here, we set it very small
                  % just for this example.
 tic
 [indx,centers,sumd,dist_sketch] = kmeans_sparsified( [], k,'ColumnSamples',true,...
     'Display','off','Replicates',nReplicates,...
     'Sparsify',true,'SparsityLevel',SparsityLevel,'DataFile',myfile,...
-    'MB_limit',1,'DataFileVerbose',true);
+    'MB_limit',MB_limit,'DataFileVerbose',true);
 time_fastest_disk    = toc;
 obj_fastest_disk     = norm(dist_sketch);
 centers_fastest_disk = centers;

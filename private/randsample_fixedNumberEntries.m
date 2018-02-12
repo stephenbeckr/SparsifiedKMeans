@@ -57,6 +57,8 @@ for j = 1:ceil( n/blockSize )
     J       = repmat( 1:blk, small_p, 1 );
     % and convert to linear, with offset
     indBigLinear = bsxfun( @plus, indBig, offset + p*(0:blk-1) );
-    Yj      = sparse(indBig,J(:), X(indBigLinear(:))/SparsityLevel );
+    %Yj      = sparse(indBig,J(:), X(indBigLinear(:))/SparsityLevel ); %
+    %Buggy, 2/11/18. Fix is below:
+    Yj      = sparse(indBig,J(:), X(indBigLinear(:))/SparsityLevel, size(X,1), blk );
     Y       = [Y, Yj];
 end

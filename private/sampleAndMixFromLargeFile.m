@@ -79,7 +79,8 @@ end
 MB      = 1024^2;
 % 8 bytes per double entry
 % We have p rows, so allow nn columns, where nn*p*8 = MB_limit*MB
-nn      = min(1,floor( MB_limit*MB/( p*8 ) ));
+nn      = max(1,floor( MB_limit*MB/( p*8 ) )); % 2/11/18, fixed "min" bug
+nn      = min( nn, n );
 nBlocks = ceil( n/nn );
 if Verbose
     fprintf('Splitting %d x %d matrix into %d %d x %d chunks\n', ...
