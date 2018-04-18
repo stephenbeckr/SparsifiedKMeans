@@ -29,6 +29,7 @@ Current version is 2.1
 [Preconditioned Data Sparsification for Big Data with Applications to PCA and K-means](https://doi.org/10.1109/TIT.2017.2672725), F. Pourkamali Anaraki and S. Becker, IEEE Trans. Info. Theory, 2017.  See also the [arXiv version](https://arxiv.org/abs/1511.00152)
 
 Bibtex:
+
     @article{SparsifiedKmeans,
 	    title = {Preconditioned Data Sparsification for Big Data with Applications to {PCA} and {K}-means},
 	    Author = {Pourkamali-Anaraki, F. and Becker, S.},
