@@ -57,7 +57,12 @@ if exist('hadamard','file')~=3
             'hadamard_pthreads.c');
     else
         mex -O hadamard.c
-        mex('-O',threaddFlg,'-UDEBUG','-DNO_UCHAR','hadamard_pthreads.c');
+        try
+            mex('-O',threaddFlg,'-UDEBUG','-DNO_UCHAR','hadamard_pthreads.c');
+        catch
+            % do nothing, just ignore error
+            disp('pthreads is not easily compatible with Windows, so skipping the threaded version of the Hadamard transform code');
+        end
     end
     cd(here);
 end
