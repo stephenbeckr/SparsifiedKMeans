@@ -33,8 +33,9 @@ function [assignments,distances,centers] = findClusterAssignments( X, centers, t
 %
 % Stephen Becker, stephen.becker@colorado.edu
 % July 22, 2015 -- Aug 6 2015, May -- July 7 2016
+% Updates April 2020
 
-persistent mexFileExists_A  matlabmexFileExists
+persistent mexFileExists_A  matlabmexFileExists newVersionMatlab
 if isempty(mexFileExists_A), mexFileExists_A = 0; end
 %{
 We have 2 mex files that can speed things up.
@@ -122,13 +123,33 @@ if issparse(X)
 %     end
 else
     % Dense case. Optimized (May 2016)
-    if tryBuiltinMex && ~any(~matlabmexFileExists)
-        if isempty(matlabmexFileExists)
-            matlabmexFileExists = moveMatlabMex();
-        end
+    % Update, April 2020: let's explain what we did. It used to be that
+    %   Matlab's "pdist2" code wasn't that fast, but then ~2015/2016 they
+    %   updated the pdist2 code to call a mex file, so it was efficient.
+    % Then, noticing that in R2019b at least (if not earlier) that it still
+    % calls the efficient code, but the executable isn't a standalone mex
+    % file anymore, it's buried somewhere in Matlab's general libraries, so
+    % I can't call it directly. Can just call pdist2(), which is somewhat
+    % fast (at least, better than my code if k is large, slower if k is
+    % small)
+    if tryBuiltinMex && isempty(newVersionMatlab)
+        newVersionMatlab = ~verLessThan( 'matlab', '9.0'); % R2016a
+        % Not sure if that's when they changed how pdist2 calls mex, since
+        % not documented, but somewhat close
     end
     if tryBuiltinMex && ~any(~matlabmexFileExists)
+        if isempty(matlabmexFileExists)
+            matlabmexFileExists = moveMatlabMex(newVersionMatlab);
+        end
+    end
+        
+    if tryBuiltinMex && ~any(~matlabmexFileExists)
         [distances,assignments] = pdist2mex( centers, X, 'euc', [], 1, [] );
+        skip_min    = true;
+    elseif tryBuiltinMex && newVersionMatlab && k > 30
+        % April 2020, call pdist2() itself (which calls pdist2mex)
+        %   which is sometimes faster (if k is large) than my code
+        [distances,assignments] = pdist2(  centers', X', 'euclidean','smallest',1 );
         skip_min    = true;
     else
         % May 2016, expand quadratic
@@ -150,7 +171,7 @@ if ~skip_min
 end
 if do_sqrt
     % only do this on the minimum, not on all
-    distances = sqrt(distances);
+    distances = sqrt(max(0,distances));
 end
 
 
@@ -167,7 +188,7 @@ if nargout >= 3
 end
 
 
-function flag = moveMatlabMex()
+function flag = moveMatlabMex(newVersionMatlab)
 % successFlag = moveMatlabMex()
 %   successFlag = 1 means that it worked
 
@@ -184,5 +205,9 @@ if 3==exist(mxFile,'file')
         flag = 1;
     end
 else
-    disp('Cannot find pdist2mex -- do you have the stats toolbox?');
+    if ~newVersionMatlab
+        disp('Cannot find pdist2mex -- do you have the stats toolbox?');
+    end
+    % (in newer versions of Matlab, this is not unexpected, so don't issue
+    % a warning)
 end
